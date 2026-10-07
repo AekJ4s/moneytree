@@ -5,7 +5,7 @@ import { formatMoney } from '../../lib/format';
 import { errorMessage, useAsync } from '../../lib/useAsync';
 import { getSavingsGoal, listAssets, listSavingsFlows, listValuations, saveSavingsGoal } from './api';
 import { savingsTotals, summarizeAsset, treeStage } from './assetMath';
-import { MoneyTree } from './MoneyTree';
+import { TREE_VIDEO_BG, TreeVideo } from './TreeVideo';
 
 const STAGES = ['เมล็ดพันธุ์', 'ต้นกล้า', 'ต้นอ่อน', 'ต้นไม้กำลังโต', 'ต้นไม้ใหญ่', 'ต้นไม้ออกผลทองคำ 🎉'];
 
@@ -21,10 +21,10 @@ export function TreeCard({ refreshKey = 0 }: { refreshKey?: number }) {
   const stage = treeStage(progress);
 
   return (
-    <section className="card overflow-hidden bg-gradient-to-b from-emerald-50 to-white">
+    <section className="card overflow-hidden" style={{ background: TREE_VIDEO_BG }}>
       <div className="flex flex-col items-center gap-2 sm:flex-row sm:items-center">
         <div className="w-full max-w-xs sm:w-1/2">
-          <MoneyTree progress={progress} />
+          <TreeVideo progress={progress} />
         </div>
         <div className="w-full space-y-2 text-center sm:text-left">
           <div className="text-sm font-medium text-emerald-700">{STAGES[stage]}</div>
