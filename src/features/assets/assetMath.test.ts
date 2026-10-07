@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { savingsTotals, summarizeAsset, treeStage, type AssetFlow } from './assetMath';
+import { goalLayout, savingsTotals, summarizeAsset, summarizeGoals, treeStage, type AssetFlow } from './assetMath';
 import type { Asset } from './types';
 
 const dime: Asset = {
-  id: 'dime', name: 'Dime', kind: 'investment', icon: '📈', target_amount: 10000, opening_amount: 0, opening_date: null, note: null, sort_order: 0, archived: false, created_at: '',
+  id: 'dime', name: 'Dime', kind: 'investment', icon: '📈', target_amount: 10000, opening_amount: 0, opening_date: null, note: null, goal_id: 'house', sort_order: 0, archived: false, created_at: '',
 };
 
 const flows: AssetFlow[] = [
@@ -50,5 +50,23 @@ describe('savingsTotals', () => {
 describe('treeStage', () => {
   it('grows with progress', () => {
     expect([0, 0.1, 0.3, 0.6, 0.8, 1.2].map(treeStage)).toEqual([0, 1, 2, 3, 4, 5]);
+  });
+});
+
+describe('goals', () => {
+  const goal = (id: string, target: number, sort_order: number) => ({ id, name: id, target_amount: target, icon: null, deadline: null, sort_order, created_at: '' });
+
+  it('sums the assets dragged into each goal', () => {
+    const dimeSummary = summarizeAsset(dime, flows, []);
+    const gold = summarizeAsset({ ...dime, id: 'gold', goal_id: null }, [{ asset_id: 'gold', type: 'expense', amount: 999, txn_date: '2026-10-01' }], []);
+    const [house, trip] = summarizeGoals([goal('trip', 1000, 2), goal('house', 10000, 1)], [dimeSummary, gold]);
+    expect(house).toMatchObject({ value: 2500, progress: 0.25 });
+    expect(trip).toMatchObject({ value: 0, progress: 0 });
+  });
+
+  it('packs more goals into denser layouts, at most six', () => {
+    expect([1, 2, 3, 4, 5, 6, 9].map((n) => goalLayout(n).size)).toEqual(['large', 'medium', 'small', 'small', 'small', 'small', 'small']);
+    expect(goalLayout(4).grid).toBe('grid-cols-2');
+    expect(goalLayout(9).grid).toBe(goalLayout(6).grid);
   });
 });

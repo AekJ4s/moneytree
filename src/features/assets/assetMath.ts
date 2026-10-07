@@ -1,4 +1,4 @@
-import type { Asset, AssetValuation } from './types';
+import type { Asset, AssetValuation, SavingsGoal } from './types';
 
 export interface AssetFlow {
   asset_id: string | null;
@@ -70,4 +70,37 @@ export function treeStage(progress: number): number {
   if (p >= 0.25) return 2;
   if (p > 0) return 1;
   return 0;
+}
+
+export interface GoalSummary {
+  goal: SavingsGoal;
+  assets: AssetSummary[];
+  value: number;
+  /** value ÷ target (can exceed 1). */
+  progress: number;
+}
+
+export function summarizeGoals(goals: SavingsGoal[], assets: AssetSummary[]): GoalSummary[] {
+  return [...goals]
+    .sort((a, b) => a.sort_order - b.sort_order || a.created_at.localeCompare(b.created_at))
+    .map((goal) => {
+      const mine = assets.filter((a) => a.asset.goal_id === goal.id);
+      const value = round2(mine.reduce((s, a) => s + a.value, 0));
+      return { goal, assets: mine, value, progress: value / Number(goal.target_amount) };
+    });
+}
+
+export type GoalCardSize = 'large' | 'medium' | 'small';
+
+/** The home page shows at most this many goal cards. */
+export const MAX_HOME_GOALS = 6;
+
+/** Grid columns and card size for the home page, denser as the number of goals grows. */
+export function goalLayout(count: number): { grid: string; size: GoalCardSize } {
+  const n = Math.min(count, MAX_HOME_GOALS);
+  if (n <= 1) return { grid: 'grid-cols-1', size: 'large' };
+  if (n === 2) return { grid: 'grid-cols-1 sm:grid-cols-2', size: 'medium' };
+  if (n === 3) return { grid: 'grid-cols-1 sm:grid-cols-3', size: 'small' };
+  if (n === 4) return { grid: 'grid-cols-2', size: 'small' };
+  return { grid: 'grid-cols-2 lg:grid-cols-3', size: 'small' };
 }

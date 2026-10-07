@@ -5,10 +5,12 @@ import { errorMessage, useAsync } from '../../lib/useAsync';
 import { useUserId } from '../auth/AuthProvider';
 import {
   addValuation,
+  assignAssetToGoal,
   createAsset,
   deleteAsset,
   deleteValuation,
   listAssets,
+  listGoals,
   listSavingsFlows,
   listValuations,
   moveSavings,
@@ -16,10 +18,11 @@ import {
   uploadAssetImage,
 } from './api';
 import { AssetIcon, isImageIcon, useAssetImages } from './AssetIcon';
-import { savingsTotals, summarizeAsset, type AssetSummary } from './assetMath';
+import { savingsTotals, summarizeAsset, summarizeGoals, type AssetSummary } from './assetMath';
+import { GoalCard } from './GoalCard';
+import { GoalForm } from './GoalForm';
 import { SavingsForm } from './SavingsForm';
-import { TreeCard } from './TreeCard';
-import { ASSET_KINDS, ASSET_PRESETS, type Asset, type AssetKind } from './types';
+import { ASSET_KINDS, ASSET_PRESETS, type Asset, type AssetKind, type SavingsGoal } from './types';
 
 /** Drag payload: which place the money is being moved from (null = main wallet). */
 const DRAG_TYPE = 'application/x-moneytree-savings';
@@ -28,23 +31,38 @@ type Dialog =
   | { type: 'new' }
   | { type: 'save' }
   | { type: 'detail'; id: string }
-  | { type: 'move'; fromId: string | null; toId: string | null };
+  | { type: 'move'; fromId: string | null; toId: string | null }
+  | { type: 'goal'; goal: SavingsGoal | null };
 
 export function AssetsPage() {
-  const data = useAsync(() => Promise.all([listAssets(), listSavingsFlows(), listValuations()]), []);
+  const data = useAsync(() => Promise.all([listAssets(), listSavingsFlows(), listValuations(), listGoals()]), []);
   const [dialog, setDialog] = useState<Dialog | null>(null);
-  const [refreshKey, setRefreshKey] = useState(0);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
 
-  const [assets, flows, valuations] = data.data ?? [[], [], []];
+  const [assets, flows, valuations, goals] = data.data ?? [[], [], [], []];
+  const [error, setError] = useState<string | null>(null);
   const images = useAssetImages(assets);
   const summaries = assets.map((a) => summarizeAsset(a, flows, valuations));
   const totals = savingsTotals(summaries, flows);
+  const goalSummaries = summarizeGoals(goals, summaries);
+  const goalName = new Map(goals.map((g) => [g.id, `${g.icon ?? '🎯'} ${g.name}`]));
   const detail = dialog?.type === 'detail' ? summaries.find((s) => s.asset.id === dialog.id) : undefined;
 
   function reload() {
     data.reload();
-    setRefreshKey((k) => k + 1);
+  }
+
+  /** An asset dropped on a goal now counts towards that goal; the main wallet itself cannot be. */
+  function dropOnGoal(e: DragEvent, goalId: string) {
+    e.preventDefault();
+    setDropTarget(null);
+    const raw = e.dataTransfer.getData(DRAG_TYPE);
+    if (!raw || raw === 'wallet') {
+      setError('ย้ายเงินจากกระเป๋าหลักเข้าที่เก็บก่อน แล้วค่อยลากที่เก็บเข้าเป้าหมาย');
+      return;
+    }
+    setError(null);
+    assignAssetToGoal(raw, goalId).then(reload, (err: unknown) => setError(errorMessage(err)));
   }
 
   function startDrag(e: DragEvent, fromId: string | null) {
@@ -75,8 +93,48 @@ export function AssetsPage() {
         </div>
       </div>
 
-      <TreeCard refreshKey={refreshKey} />
-      <ErrorText>{data.error}</ErrorText>
+      <section className="space-y-2">
+        <div className="flex items-baseline justify-between">
+          <h2 className="font-semibold">
+            🌳 เป้าหมาย
+            <span className="ml-2 text-sm font-normal text-slate-500">
+              ออม+ลงทุนรวม <b className="tabular-nums text-amber-600">{formatMoney(totals.value)}</b>
+            </span>
+          </h2>
+          <button className="text-sm text-amber-700 hover:underline" onClick={() => setDialog({ type: 'goal', goal: null })}>
+            + เป้าหมาย
+          </button>
+        </div>
+        {goalSummaries.length === 0 ? (
+          <p className="rounded-xl bg-amber-50 p-3 text-sm text-slate-600">ยังไม่มีเป้าหมาย — สร้างเป้าหมาย แล้วลากที่เก็บเงินด้านล่างไปวางบนเป้าหมาย</p>
+        ) : (
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+            {goalSummaries.map((g) => (
+              <GoalCard
+                key={g.goal.id}
+                summary={g}
+                size="small"
+                images={images}
+                highlighted={dropTarget === `goal:${g.goal.id}`}
+                onClick={() => setDialog({ type: 'goal', goal: g.goal })}
+                onDragOver={(e) => {
+                  if (!e.dataTransfer.types.includes(DRAG_TYPE)) return;
+                  e.preventDefault();
+                  setDropTarget(`goal:${g.goal.id}`);
+                }}
+                onDragLeave={() => setDropTarget((t) => (t === `goal:${g.goal.id}` ? null : t))}
+                onDrop={(e) => dropOnGoal(e, g.goal.id)}
+              />
+            ))}
+          </div>
+        )}
+        {goalSummaries.length > 0 && assets.length > 0 && (
+          <p className="text-xs text-slate-400">
+            ลากการ์ดที่เก็บเงินด้านล่างขึ้นไปวางบนเป้าหมาย เพื่อนับเข้าเป้าหมายนั้น (มือถือ: แก้ไขที่เก็บ แล้วเลือกเป้าหมาย)
+          </p>
+        )}
+      </section>
+      <ErrorText>{data.error ?? error}</ErrorText>
 
       {/* Main wallet: savings not yet placed anywhere. Drag it onto a place below. */}
       {totals.unassigned > 0 && (
@@ -120,6 +178,9 @@ export function AssetsPage() {
             onClick={() => setDialog({ type: 'detail', id: s.asset.id })}
           >
             <AssetRow summary={s} images={images} />
+            {s.asset.goal_id && goalName.get(s.asset.goal_id) && (
+              <div className="mt-1 text-xs text-amber-700">อยู่ในเป้าหมาย {goalName.get(s.asset.goal_id)}</div>
+            )}
           </button>
         ))}
         {!data.loading && summaries.length === 0 && (
@@ -130,7 +191,18 @@ export function AssetsPage() {
 
       {dialog?.type === 'new' && (
         <Modal title="เพิ่มที่เก็บเงิน" onClose={() => setDialog(null)}>
-          <AssetForm existing={assets} images={images} onSaved={() => { setDialog(null); reload(); }} />
+          <AssetForm existing={assets} goals={goals} images={images} onSaved={() => { setDialog(null); reload(); }} />
+        </Modal>
+      )}
+      {dialog?.type === 'goal' && (
+        <Modal title={dialog.goal ? dialog.goal.name : 'เป้าหมายใหม่'} onClose={() => setDialog(null)}>
+          <GoalForm
+            initial={dialog.goal ?? undefined}
+            existingNames={goals.map((g) => g.name)}
+            assets={dialog.goal ? summaries.filter((s) => s.asset.goal_id === dialog.goal!.id) : []}
+            images={images}
+            onSaved={() => { setDialog(null); reload(); }}
+          />
         </Modal>
       )}
       {dialog?.type === 'save' && (
@@ -155,6 +227,7 @@ export function AssetsPage() {
           <AssetDetail
             summary={detail}
             existing={assets}
+            goals={goals}
             images={images}
             flows={flows.filter((f) => f.asset_id === detail.asset.id)}
             valuations={valuations.filter((v) => v.asset_id === detail.asset.id)}
@@ -292,15 +365,18 @@ function MoveForm({ assets, summaries, walletAmount, initialFrom, initialTo, onS
 function AssetForm({
   initial,
   existing,
+  goals,
   images,
   onSaved,
 }: {
   initial?: Asset;
   existing: Asset[];
+  goals: SavingsGoal[];
   images: Record<string, string>;
   onSaved: () => void;
 }) {
   const userId = useUserId();
+  const [goalId, setGoalId] = useState(initial?.goal_id ?? '');
   const [name, setName] = useState(initial?.name ?? '');
   const [kind, setKind] = useState<AssetKind>(initial?.kind ?? 'investment');
   const [icon, setIcon] = useState(isImageIcon(initial?.icon) ? '' : (initial?.icon ?? ''));
@@ -342,6 +418,7 @@ function AssetForm({
         target_amount: target.trim() ? Number(target.replace(/,/g, '')) : null,
         opening_amount: openingAmount,
         opening_date: openingAmount > 0 ? openingDate : null,
+        goal_id: goalId || null,
         note: null,
       };
       if (initial) await updateAsset(initial.id, input);
@@ -442,8 +519,21 @@ function AssetForm({
         </p>
       </div>
 
+      {goals.length > 0 && (
+        <label className="block">
+          <span className="text-sm text-slate-600">นับเข้าเป้าหมาย</span>
+          <select className="input mt-1" value={goalId} onChange={(e) => setGoalId(e.target.value)}>
+            <option value="">ไม่อยู่ในเป้าหมาย</option>
+            {goals.map((g) => (
+              <option key={g.id} value={g.id}>
+                {g.icon ?? '🎯'} {g.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       <label className="block">
-        <span className="text-sm text-slate-600">เป้าหมายของที่เก็บนี้ (ไม่บังคับ)</span>
+        <span className="text-sm text-slate-600">ยอดเป้าหมายของที่เก็บนี้เอง (ไม่บังคับ)</span>
         <input className="input mt-1" inputMode="decimal" value={target} onChange={(e) => setTarget(e.target.value)} placeholder="เช่น 100000" />
       </label>
       <ErrorText>{error}</ErrorText>
@@ -457,6 +547,7 @@ function AssetForm({
 interface DetailProps {
   summary: AssetSummary;
   existing: Asset[];
+  goals: SavingsGoal[];
   images: Record<string, string>;
   flows: { id: string; type: 'income' | 'expense'; amount: number; txn_date: string; note: string | null }[];
   valuations: { id: string; value: number; valued_on: string; note: string | null }[];
@@ -465,7 +556,7 @@ interface DetailProps {
   onDeleted: () => void;
 }
 
-function AssetDetail({ summary: s, existing, images, flows, valuations, onMove, onChanged, onDeleted }: DetailProps) {
+function AssetDetail({ summary: s, existing, goals, images, flows, valuations, onMove, onChanged, onDeleted }: DetailProps) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState('');
   const [date, setDate] = useState(todayIso());
@@ -482,7 +573,7 @@ function AssetDetail({ summary: s, existing, images, flows, valuations, onMove, 
   }
 
   if (editing) {
-    return <AssetForm initial={s.asset} existing={existing} images={images} onSaved={() => { setEditing(false); onChanged(); }} />;
+    return <AssetForm initial={s.asset} existing={existing} goals={goals} images={images} onSaved={() => { setEditing(false); onChanged(); }} />;
   }
 
   return (

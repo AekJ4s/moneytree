@@ -8,7 +8,7 @@ import { DueRecurringList } from '../recurring/DueRecurringList';
 import { signSlipUrls } from '../slips/storage';
 import { listTransactions } from '../transactions/api';
 import { BalanceCard } from '../money/BalanceCard';
-import { TreeCard } from '../assets/TreeCard';
+import { GoalsGrid } from '../assets/GoalsGrid';
 import { EntryHub } from '../money/EntryHub';
 import { TransactionList } from '../transactions/TransactionList';
 import { isSavings, sumMoney } from '../../lib/savings';
@@ -57,7 +57,7 @@ export function DashboardPage() {
         </div>
       </div>
 
-      <TreeCard refreshKey={refreshKey} />
+      <GoalsGrid refreshKey={refreshKey} />
       <BalanceCard refreshKey={refreshKey} />
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">

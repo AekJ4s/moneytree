@@ -1,12 +1,12 @@
 import imageCompression from 'browser-image-compression';
 import { SAVINGS_CATEGORIES } from '../../lib/savings';
-import { check, supabase, unwrap, unwrapMaybe } from '../../lib/supabase';
+import { check, supabase, unwrap } from '../../lib/supabase';
 import type { AssetFlow } from './assetMath';
 import { CREDITOR_LOGO_BUCKET } from '../debts/api';
-import type { Asset, AssetValuation } from './types';
+import type { Asset, AssetValuation, SavingsGoal } from './types';
 
 export type AssetInput = Pick<Asset, 'name' | 'kind' | 'icon' | 'target_amount' | 'note'> &
-  Partial<Pick<Asset, 'opening_amount' | 'opening_date'>>;
+  Partial<Pick<Asset, 'opening_amount' | 'opening_date' | 'goal_id'>>;
 
 export async function listAssets(): Promise<Asset[]> {
   return unwrap(await supabase.from('assets').select('*').eq('archived', false).order('sort_order').order('created_at'));
@@ -55,19 +55,31 @@ export async function listSavingsFlows(): Promise<SavingsTxn[]> {
   return rows.map((r) => ({ ...r, amount: Number(r.amount) }));
 }
 
-export async function getSavingsGoal(): Promise<number | null> {
-  const row = unwrapMaybe(await supabase.from('user_settings').select('savings_goal').maybeSingle()) as {
-    savings_goal: number | null;
-  } | null;
-  return row?.savings_goal != null ? Number(row.savings_goal) : null;
+export type GoalInput = Pick<SavingsGoal, 'name' | 'target_amount' | 'icon' | 'deadline'>;
+
+export async function listGoals(): Promise<SavingsGoal[]> {
+  return unwrap(await supabase.from('savings_goals').select('*').order('sort_order').order('created_at'));
 }
 
-export async function saveSavingsGoal(goal: number | null): Promise<void> {
-  check(
-    await supabase
-      .from('user_settings')
-      .upsert({ savings_goal: goal, updated_at: new Date().toISOString() }, { onConflict: 'user_id' }),
+export async function createGoal(input: GoalInput): Promise<SavingsGoal> {
+  const count = unwrap(await supabase.from('savings_goals').select('id')).length;
+  return unwrap(
+    await supabase.from('savings_goals').insert({ ...input, name: input.name.trim(), sort_order: count + 1 }).select().single(),
   );
+}
+
+export async function updateGoal(id: string, patch: Partial<GoalInput & { sort_order: number }>): Promise<void> {
+  check(await supabase.from('savings_goals').update(patch).eq('id', id));
+}
+
+/** Deleting a goal keeps its assets; they just stop counting towards any goal. */
+export async function deleteGoal(id: string): Promise<void> {
+  check(await supabase.from('savings_goals').delete().eq('id', id));
+}
+
+/** Puts an asset into a goal (or takes it out with null). */
+export async function assignAssetToGoal(assetId: string, goalId: string | null): Promise<void> {
+  check(await supabase.from('assets').update({ goal_id: goalId }).eq('id', assetId));
 }
 
 /** Compresses an asset picture and stores it privately; returns the storage path to keep in `icon`. */

@@ -11,6 +11,8 @@ export interface Asset {
   opening_amount: number;
   opening_date: string | null;
   note: string | null;
+  /** Savings goal this asset counts towards. */
+  goal_id: string | null;
   sort_order: number;
   archived: boolean;
   created_at: string;
@@ -40,3 +42,13 @@ export const ASSET_PRESETS: { name: string; kind: AssetKind; icon: string }[] = 
   { name: 'เงินสด', kind: 'cash', icon: '💵' },
   { name: 'เงินฝากออมทรัพย์', kind: 'savings', icon: '🏦' },
 ];
+
+export interface SavingsGoal {
+  id: string;
+  name: string;
+  target_amount: number;
+  icon: string | null;
+  deadline: string | null;
+  sort_order: number;
+  created_at: string;
+}
