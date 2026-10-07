@@ -1,5 +1,5 @@
 export type TxnType = 'income' | 'expense';
-export type TxnSource = 'manual' | 'slip' | 'recurring';
+export type TxnSource = 'manual' | 'slip' | 'recurring' | 'import';
 export type RuleMatchType = 'promptpay' | 'keyword';
 export type IntervalUnit = 'week' | 'month' | 'year';
 
@@ -34,6 +34,8 @@ export interface Transaction {
   slip_bank: string | null;
   slip_image_path: string | null;
   qr_payload: string | null;
+  account: string | null;
+  import_key: string | null;
   created_at: string;
   payee?: Pick<Payee, 'id' | 'name'> | null;
 }

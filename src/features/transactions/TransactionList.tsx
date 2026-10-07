@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ImageViewer } from '../../components/Modal';
 import { formatMoney, formatThaiDate } from '../../lib/format';
-import type { Transaction } from '../../lib/types';
+import type { Transaction, TxnSource } from '../../lib/types';
 
 interface Props {
   transactions: Transaction[];
@@ -11,7 +11,7 @@ interface Props {
   onDelete?: (t: Transaction) => void;
 }
 
-const SOURCE_LABEL = { manual: 'บันทึกเอง', slip: 'สลิป', recurring: 'ประจำ' } as const;
+const SOURCE_LABEL: Record<TxnSource, string> = { manual: 'บันทึกเอง', slip: 'สลิป', recurring: 'ประจำ', import: 'นำเข้า' };
 
 export function TransactionList({ transactions, slipUrls = {}, showDate, onEdit, onDelete }: Props) {
   const [viewing, setViewing] = useState<string | null>(null);
@@ -26,6 +26,7 @@ export function TransactionList({ transactions, slipUrls = {}, showDate, onEdit,
             showDate && formatThaiDate(t.txn_date),
             t.txn_time?.slice(0, 5),
             t.category,
+            t.account,
             SOURCE_LABEL[t.source],
             t.payee && t.note,
           ].filter(Boolean);
@@ -46,7 +47,7 @@ export function TransactionList({ transactions, slipUrls = {}, showDate, onEdit,
               )}
               <div className="min-w-0 flex-1">
                 <div className="truncate font-medium">
-                  {t.payee?.name ?? t.note ?? (t.type === 'income' ? 'รายรับ' : 'รายจ่าย')}
+                  {t.payee?.name ?? t.note ?? t.category ?? (t.type === 'income' ? 'รายรับ' : 'รายจ่าย')}
                 </div>
                 <div className="truncate text-xs text-slate-500">{meta.join(' · ')}</div>
               </div>

@@ -5,6 +5,7 @@ import { useAuth } from '../features/auth/AuthProvider';
 const NAV = [
   { to: '/', label: 'ภาพรวม', icon: '🏠' },
   { to: '/slips', label: 'อัปโหลดสลิป', icon: '🧾' },
+  { to: '/import', label: 'นำเข้า', icon: '📥' },
   { to: '/daily', label: 'รายวัน', icon: '📅' },
   { to: '/recurring', label: 'รายการประจำ', icon: '🔁' },
   { to: '/payees', label: 'ผู้รับ/แมป', icon: '🏷️' },
@@ -38,7 +39,7 @@ export function Layout() {
           <Outlet />
         </Suspense>
       </main>
-      <nav className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-5 border-t border-slate-200 bg-white md:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-6 border-t border-slate-200 bg-white md:hidden">
         {NAV.map((n) => (
           <NavLink
             key={n.to}

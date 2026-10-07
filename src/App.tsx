@@ -9,6 +9,7 @@ const DashboardPage = lazy(() => import('./features/dashboard/DashboardPage').th
 const SlipUploadPage = lazy(() => import('./features/slips/SlipUploadPage').then((m) => ({ default: m.SlipUploadPage })));
 const DailyPage = lazy(() => import('./features/transactions/DailyPage').then((m) => ({ default: m.DailyPage })));
 const RecurringPage = lazy(() => import('./features/recurring/RecurringPage').then((m) => ({ default: m.RecurringPage })));
+const ImportPage = lazy(() => import('./features/import/ImportPage').then((m) => ({ default: m.ImportPage })));
 const PayeesPage = lazy(() => import('./features/payees/PayeesPage').then((m) => ({ default: m.PayeesPage })));
 
 const loading = <div className="p-8 text-center text-slate-400">กำลังโหลด…</div>;
@@ -38,6 +39,7 @@ export function App() {
               <Route path="slips" element={<SlipUploadPage />} />
               <Route path="daily" element={<DailyPage />} />
               <Route path="recurring" element={<RecurringPage />} />
+              <Route path="import" element={<ImportPage />} />
               <Route path="payees" element={<PayeesPage />} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
