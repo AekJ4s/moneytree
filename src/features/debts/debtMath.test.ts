@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildSchedule, monthlyRate, summarizeDebt } from './debtMath';
+import { buildSchedule, monthlyRate, rebalanceFixedPayment, summarizeDebt } from './debtMath';
 import type { Debt, DebtEntry, DebtInstallment } from './types';
 
 describe('monthlyRate', () => {
@@ -46,6 +46,20 @@ describe('buildSchedule', () => {
     expect(rows[11].due_date).toBe('2027-10-05');
   });
 
+  it('fixed payment: principal = payment - interest, last row closes the loan', () => {
+    const rows = buildSchedule({
+      principal: 10000,
+      termMonths: 24,
+      interestMode: 'annual',
+      interestRate: 23,
+      interestMethod: 'reducing',
+      firstDueDate: '2026-10-20',
+      fixedPayment: 523.73,
+    });
+    expect(rows[0]).toEqual({ seq: 1, due_date: '2026-10-20', principal: 332.06, interest: 191.67 });
+    expect(rows.reduce((s, r) => s + r.principal, 0)).toBeCloseTo(10000, 2);
+  });
+
   it('0% / manual interest splits principal only', () => {
     const rows = buildSchedule({
       principal: 1000,
@@ -63,6 +77,40 @@ describe('buildSchedule', () => {
   });
 });
 
+describe('rebalanceFixedPayment', () => {
+  const r = monthlyRate('annual', 23);
+  const blank = (n: number) => Array.from({ length: n }, () => ({ principal: 0, interest: 0, locked: false }));
+
+  it('matches the statement once the actual interest is entered (LINE BK 1/24)', () => {
+    const rows = rebalanceFixedPayment(blank(24), 10000, 523.73, r);
+    rows[0] = { principal: round(523.73 - 126.03), interest: 126.03, locked: true };
+    const next = rebalanceFixedPayment(rows, 10000, 523.73, r);
+    expect(next[0]).toMatchObject({ principal: 397.7, interest: 126.03 });
+    // Next month is re-estimated on the lower balance: 9,602.30 * 23% / 12.
+    expect(next[1]).toMatchObject({ principal: 339.69, interest: 184.04 });
+    expect(next.reduce((s, x) => s + x.principal, 0)).toBeCloseTo(10000, 2);
+  });
+
+  it('keeps locked rows and closes on the last row', () => {
+    const rows = [
+      { principal: 400, interest: 100, locked: true },
+      { principal: 0, interest: 0, locked: false },
+      { principal: 0, interest: 0, locked: false },
+    ];
+    const next = rebalanceFixedPayment(rows, 1000, 500, 0);
+    expect(next.map((x) => x.principal)).toEqual([400, 500, 100]);
+  });
+
+  it('stops charging principal once the loan is repaid early', () => {
+    const next = rebalanceFixedPayment(blank(4), 900, 500, 0);
+    expect(next.map((x) => x.principal)).toEqual([500, 400, 0, 0]);
+  });
+});
+
+function round(n: number) {
+  return Math.round(n * 100) / 100;
+}
+
 const baseDebt: Debt = {
   id: 'd1',
   creditor_id: 'c1',
@@ -78,13 +126,14 @@ const baseDebt: Debt = {
   due_day: null,
   credit_limit: null,
   min_payment_percent: null,
+  installment_amount: null,
   closed_on: null,
   note: null,
   created_at: '',
 };
 
 function inst(seq: number, due_date: string, principal: number, interest = 0): DebtInstallment {
-  return { id: `i${seq}`, debt_id: 'd1', seq, due_date, principal, interest };
+  return { id: `i${seq}`, debt_id: 'd1', seq, due_date, principal, interest, confirmed: false };
 }
 
 function entry(kind: DebtEntry['kind'], amount: number, installment_id: string | null = null): DebtEntry {

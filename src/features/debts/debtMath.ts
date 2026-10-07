@@ -20,6 +20,8 @@ export interface ScheduleInput {
   interestRate: number | null;
   interestMethod: InterestMethod;
   firstDueDate: string;
+  /** Bank-style fixed payment per installment; principal = payment - interest. */
+  fixedPayment?: number | null;
 }
 
 export interface ScheduleRow {
@@ -27,6 +29,46 @@ export interface ScheduleRow {
   due_date: string;
   principal: number;
   interest: number;
+}
+
+/** A schedule row as far as rebalancing is concerned. Locked rows (paid or confirmed) are kept as-is. */
+export interface BalanceRow {
+  principal: number;
+  interest: number;
+  locked: boolean;
+}
+
+/**
+ * Recomputes unlocked rows of a fixed-payment schedule, in order:
+ * interest is estimated on the remaining principal, principal = payment - interest,
+ * and the last row takes whatever principal remains so the loan closes exactly.
+ * Locked rows (values from a statement, or already paid) are never changed.
+ */
+export function rebalanceFixedPayment<T extends BalanceRow>(
+  rows: T[],
+  totalPrincipal: number,
+  payment: number,
+  rate: number,
+): T[] {
+  let remaining = round2(totalPrincipal);
+  return rows.map((row, idx) => {
+    if (row.locked) {
+      remaining = round2(remaining - Number(row.principal));
+      return row;
+    }
+    const last = idx === rows.length - 1;
+    const interest = round2(Math.max(0, remaining) * rate);
+    const principal = last
+      ? Math.max(0, remaining)
+      : Math.min(Math.max(0, remaining), Math.max(0, round2(payment - interest)));
+    remaining = round2(remaining - principal);
+    return { ...row, principal: round2(principal), interest };
+  });
+}
+
+/** Standard amortised payment (equal installments, interest on the remaining balance). */
+export function amortizedPayment(principal: number, termMonths: number, rate: number): number {
+  return round2(rate > 0 ? (principal * rate) / (1 - (1 + rate) ** -termMonths) : principal / termMonths);
 }
 
 /**
@@ -64,6 +106,14 @@ export function buildSchedule(input: ScheduleInput): ScheduleRow[] {
     balance = round2(balance - principal);
     rows.push({ seq, due_date: due, principal, interest });
     due = nextDueDate(due, rule);
+  }
+  if (input.fixedPayment && input.fixedPayment > 0) {
+    return rebalanceFixedPayment(
+      rows.map((row) => ({ ...row, locked: false })),
+      P,
+      input.fixedPayment,
+      r,
+    ).map(({ locked: _locked, ...row }) => row);
   }
   return rows;
 }

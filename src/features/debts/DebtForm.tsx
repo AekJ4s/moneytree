@@ -3,7 +3,7 @@ import { ErrorText } from '../../components/Modal';
 import { addDays, formatMoney, formatThaiDate, todayIso } from '../../lib/format';
 import { errorMessage } from '../../lib/useAsync';
 import { createDebt, replaceSchedule, updateDebt } from './api';
-import { buildSchedule } from './debtMath';
+import { amortizedPayment, buildSchedule, monthlyRate } from './debtMath';
 import { KIND_LABEL, type Debt, type DebtInput, type DebtKind, type InterestMethod, type InterestMode } from './types';
 
 interface Props {
@@ -31,7 +31,11 @@ export function DebtForm({ creditorId, initial, hasPayments, onSaved }: Props) {
   const [principal, setPrincipal] = useState(initial ? String(initial.principal) : '');
   const [mode, setMode] = useState<InterestMode>(initial?.interest_mode ?? 'none');
   const [rate, setRate] = useState(initial?.interest_rate != null ? String(initial.interest_rate) : '');
-  const [method, setMethod] = useState<InterestMethod>(initial?.interest_method ?? 'flat');
+  // 'fixed' = bank-style fixed payment per installment (stored as reducing + installment_amount).
+  const [calc, setCalc] = useState<InterestMethod | 'fixed'>(
+    initial ? (initial.installment_amount ? 'fixed' : initial.interest_method) : 'fixed',
+  );
+  const [payment, setPayment] = useState(initial?.installment_amount != null ? String(initial.installment_amount) : '');
   const [term, setTerm] = useState(String(initial?.term_months ?? 3));
   const [startDate, setStartDate] = useState(initial?.start_date ?? todayIso());
   const [firstDue, setFirstDue] = useState(initial?.first_due_date ?? addDays(todayIso(), 30));
@@ -45,6 +49,12 @@ export function DebtForm({ creditorId, initial, hasPayments, onSaved }: Props) {
   const scheduled = kind !== 'revolving';
   const scheduleLocked = !!initial && scheduled && hasPayments;
   const usesRate = mode === 'annual' || mode === 'monthly';
+  const isFixed = scheduled && mode !== 'none' && calc === 'fixed';
+  const method: InterestMethod = calc === 'fixed' ? 'reducing' : calc;
+  const suggestedPayment =
+    scheduled && num(principal) > 0 && Number(term) >= 1
+      ? amortizedPayment(num(principal), Number(term), monthlyRate(mode, usesRate ? num(rate) : null))
+      : null;
 
   const schedule = useMemo(() => {
     const P = num(principal);
@@ -57,8 +67,9 @@ export function DebtForm({ creditorId, initial, hasPayments, onSaved }: Props) {
       interestRate: usesRate ? num(rate) : null,
       interestMethod: method,
       firstDueDate: firstDue,
+      fixedPayment: isFixed ? num(payment) : null,
     });
-  }, [scheduled, principal, term, firstDue, mode, rate, method, usesRate]);
+  }, [scheduled, principal, term, firstDue, mode, rate, method, usesRate, isFixed, payment]);
 
   const totalInterest = schedule.reduce((s, r) => s + r.interest, 0);
   const firstPayment = schedule[0] ? schedule[0].principal + schedule[0].interest : 0;
@@ -70,6 +81,7 @@ export function DebtForm({ creditorId, initial, hasPayments, onSaved }: Props) {
     if (!(P >= 0) || principal.trim() === '') return setError('กรุณาใส่ยอดเงิน');
     if (scheduled && schedule.length === 0) return setError('กรุณาใส่ยอด จำนวนงวด และวันครบกำหนดงวดแรก');
     if (usesRate && !(num(rate) >= 0 && rate.trim() !== '')) return setError('กรุณาใส่อัตราดอกเบี้ย');
+    if (isFixed && !(num(payment) > 0)) return setError('กรุณาใส่ยอดผ่อนต่องวด');
 
     const input: DebtInput = {
       creditor_id: creditorId,
@@ -85,6 +97,7 @@ export function DebtForm({ creditorId, initial, hasPayments, onSaved }: Props) {
       due_day: scheduled ? Number(firstDue.slice(8, 10)) : dueDay ? Number(dueDay) : null,
       credit_limit: !scheduled && creditLimit ? num(creditLimit) : null,
       min_payment_percent: !scheduled && minPercent ? num(minPercent) : null,
+      installment_amount: isFixed ? num(payment) : null,
       closed_on: initial?.closed_on ?? null,
       note: note.trim() || null,
     };
@@ -181,21 +194,49 @@ export function DebtForm({ creditorId, initial, hasPayments, onSaved }: Props) {
           <p className="text-xs text-slate-500">ดอกเบี้ยจริงแต่ละเดือนบันทึกเป็นรายการ “ดอกเบี้ย” ตามใบแจ้งยอดได้</p>
         )}
 
-        {usesRate && (
+        {(usesRate || (scheduled && mode === 'manual')) && (
           <div className="grid grid-cols-2 gap-2">
-            <label className="block">
-              <span className="text-sm text-slate-600">อัตรา (% ต่อ{mode === 'annual' ? 'ปี' : 'เดือน'})</span>
-              <input className="input mt-1" inputMode="decimal" value={rate} onChange={(e) => setRate(e.target.value)} placeholder={mode === 'annual' ? '16' : '1.25'} />
-            </label>
+            {usesRate && (
+              <label className="block">
+                <span className="text-sm text-slate-600">อัตรา (% ต่อ{mode === 'annual' ? 'ปี' : 'เดือน'})</span>
+                <input className="input mt-1" inputMode="decimal" value={rate} onChange={(e) => setRate(e.target.value)} placeholder={mode === 'annual' ? '16' : '1.25'} />
+              </label>
+            )}
             {scheduled && (
               <label className="block">
                 <span className="text-sm text-slate-600">วิธีคิดดอกเบี้ย</span>
-                <select className="input mt-1" value={method} onChange={(e) => setMethod(e.target.value as InterestMethod)}>
+                <select className="input mt-1" value={calc} onChange={(e) => setCalc(e.target.value as InterestMethod | 'fixed')}>
+                  <option value="fixed">ยอดผ่อนคงที่ (แบบธนาคาร)</option>
+                  <option value="reducing">ลดต้นลดดอก (คำนวณเอง)</option>
                   <option value="flat">คงที่ (Flat rate)</option>
-                  <option value="reducing">ลดต้นลดดอก</option>
                 </select>
               </label>
             )}
+          </div>
+        )}
+
+        {isFixed && (
+          <div className="rounded-lg bg-emerald-50 p-3">
+            <label className="block">
+              <span className="text-sm text-slate-700">ยอดผ่อนต่องวด (ตามสัญญา/ใบแจ้งยอด)</span>
+              <div className="mt-1 flex gap-2">
+                <input
+                  className="input"
+                  inputMode="decimal"
+                  value={payment}
+                  onChange={(e) => setPayment(e.target.value)}
+                  placeholder={suggestedPayment ? suggestedPayment.toFixed(2) : 'เช่น 523.73'}
+                />
+                {suggestedPayment && (
+                  <button type="button" className="btn-secondary shrink-0 text-xs" onClick={() => setPayment(suggestedPayment.toFixed(2))}>
+                    ใช้ {formatMoney(suggestedPayment)}
+                  </button>
+                )}
+              </div>
+            </label>
+            <p className="mt-1 text-xs text-slate-600">
+              ทุกเดือนกรอกดอกเบี้ยตามใบแจ้งยอด ระบบจะคิดเงินต้น = ยอดผ่อน − ดอกเบี้ย และปรับยอดคงเหลือของงวดถัดไปให้ตรงกับธนาคาร
+            </p>
           </div>
         )}
 

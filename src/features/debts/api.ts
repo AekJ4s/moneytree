@@ -120,11 +120,15 @@ export async function deleteDebt(id: string): Promise<void> {
   check(await supabase.from('debts').delete().eq('id', id));
 }
 
-export async function updateInstallment(
-  id: string,
-  patch: Partial<Pick<DebtInstallment, 'interest' | 'principal' | 'due_date'>>,
-): Promise<void> {
+export type InstallmentPatch = Partial<Pick<DebtInstallment, 'interest' | 'principal' | 'due_date' | 'confirmed'>>;
+
+export async function updateInstallment(id: string, patch: InstallmentPatch): Promise<void> {
   check(await supabase.from('debt_installments').update(patch).eq('id', id));
+}
+
+/** Applies several row updates (e.g. after rebalancing a fixed-payment schedule). */
+export async function updateInstallments(changes: { id: string; patch: InstallmentPatch }[]): Promise<void> {
+  await Promise.all(changes.map((c) => updateInstallment(c.id, c.patch)));
 }
 
 export interface EntryInput {

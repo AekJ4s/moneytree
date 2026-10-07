@@ -2,10 +2,11 @@ import { useState } from 'react';
 import { ErrorText, Modal } from '../../components/Modal';
 import { formatMoney, formatThaiDate, todayIso } from '../../lib/format';
 import { errorMessage } from '../../lib/useAsync';
-import { deleteDebt, deleteDebtEntry, updateDebt, updateInstallment } from './api';
+import { deleteDebt, deleteDebtEntry, updateDebt, updateInstallments } from './api';
 import { monthlyRate, paidInstallmentIds, summarizeDebt } from './debtMath';
 import { DebtForm } from './DebtForm';
 import { EntryForm } from './EntryForm';
+import { planInstallmentEdit, type InstallmentEdit } from './scheduleEdits';
 import { ENTRY_LABEL, KIND_LABEL, type Debt, type DebtEntry, type DebtInstallment } from './types';
 
 interface Props {
@@ -38,6 +39,11 @@ export function DebtCard({ debt, installments, entries, onChanged }: Props) {
   const s = summarizeDebt(debt, installments, entries, today);
   const paid = paidInstallmentIds(entries);
   const closed = !!debt.closed_on;
+  const fixedPayment = !!debt.installment_amount;
+
+  function editInstallment(id: string, edit: InstallmentEdit) {
+    return run(() => updateInstallments(planInstallmentEdit(debt, installments, paid, id, edit)));
+  }
 
   async function run(action: () => Promise<void>) {
     setError(null);
@@ -133,15 +139,39 @@ export function DebtCard({ debt, installments, entries, onChanged }: Props) {
                     const isPaid = paid.has(i.id);
                     const payment = entries.find((e) => e.kind === 'payment' && e.installment_id === i.id);
                     const overdue = !isPaid && i.due_date < today;
+                    const estimated = fixedPayment && !i.confirmed && !isPaid;
                     return (
                       <tr key={i.id} className={isPaid ? 'text-slate-400' : ''}>
                         <td className="px-3 py-1.5 tabular-nums">{i.seq}</td>
                         <td className={`py-1.5 whitespace-nowrap ${overdue ? 'text-rose-600' : ''}`}>{formatThaiDate(i.due_date)}</td>
-                        <td className="py-1.5 text-right tabular-nums">{formatMoney(Number(i.principal))}</td>
                         <td className="py-1.5 text-right">
-                          <InterestCell installment={i} disabled={isPaid} onSave={(v) => run(() => updateInstallment(i.id, { interest: v }))} />
+                          <AmountCell
+                            key={`p-${i.id}-${i.principal}`}
+                            value={Number(i.principal)}
+                            estimate={estimated}
+                            label={`เงินต้นงวด ${i.seq}`}
+                            onSave={(v) => editInstallment(i.id, { kind: 'principal', value: v })}
+                          />
                         </td>
-                        <td className="py-1.5 text-right font-medium tabular-nums">
+                        <td className="py-1.5 text-right">
+                          <AmountCell
+                            key={`i-${i.id}-${i.interest}`}
+                            value={Number(i.interest)}
+                            estimate={estimated}
+                            label={`ดอกเบี้ยงวด ${i.seq}`}
+                            onSave={(v) => editInstallment(i.id, { kind: 'interest', value: v })}
+                          />
+                        </td>
+                        <td className={`py-1.5 text-right font-medium tabular-nums ${estimated ? 'text-slate-400' : ''}`}>
+                          {fixedPayment && i.confirmed && !isPaid && (
+                            <button
+                              className="mr-1 text-xs text-slate-400 hover:text-emerald-700"
+                              title="กลับไปใช้ค่าประมาณ"
+                              onClick={() => void editInstallment(i.id, { kind: 'reset' })}
+                            >
+                              ↺
+                            </button>
+                          )}
                           {formatMoney(Number(i.principal) + Number(i.interest))}
                         </td>
                         <td className="px-3 py-1.5 text-right whitespace-nowrap">
@@ -167,7 +197,11 @@ export function DebtCard({ debt, installments, entries, onChanged }: Props) {
                   })}
                 </tbody>
               </table>
-              <p className="px-3 pt-1 text-xs text-slate-400">แตะช่องดอกเบี้ยเพื่อแก้ดอกเบี้ยของเดือนนั้น</p>
+              <p className="px-3 pt-1 text-xs text-slate-400">
+                {fixedPayment
+                  ? `ยอดผ่อนงวดละ ${formatMoney(Number(debt.installment_amount))} · กรอกดอกเบี้ยตามใบแจ้งยอด ระบบคิดเงินต้นให้ ตัวเลขสีเทา (≈) คือค่าประมาณ`
+                  : 'แตะช่องเงินต้น/ดอกเบี้ยเพื่อแก้ให้ตรงกับใบแจ้งยอด'}
+              </p>
             </div>
           )}
 
@@ -296,40 +330,45 @@ function Fact({ label, value }: { label: string; value: string }) {
   );
 }
 
-/** Inline-editable monthly interest ("ดอกเบี้ยแยกรายเดือน"); saves on blur/Enter. */
-function InterestCell({
-  installment,
-  disabled,
+/** Inline-editable amount (statement principal / interest); saves on blur or Enter. */
+function AmountCell({
+  value,
+  label,
+  estimate,
   onSave,
 }: {
-  installment: DebtInstallment;
-  disabled: boolean;
+  value: number;
+  label: string;
+  /** Shown greyed with '≈' when the value is an estimate. */
+  estimate?: boolean;
   onSave: (value: number) => Promise<void>;
 }) {
-  const [value, setValue] = useState(Number(installment.interest).toFixed(2));
+  const [text, setText] = useState(value.toFixed(2));
   const [saving, setSaving] = useState(false);
 
   async function commit() {
-    const n = Number(value.replace(/,/g, ''));
-    if (!(n >= 0) || n === Number(installment.interest)) {
-      setValue(Number(installment.interest).toFixed(2));
+    const n = Math.round(Number(text.replace(/,/g, '')) * 100) / 100;
+    if (!(n >= 0) || n === value) {
+      setText(value.toFixed(2));
       return;
     }
     setSaving(true);
-    await onSave(Math.round(n * 100) / 100);
+    await onSave(n);
     setSaving(false);
   }
 
-  if (disabled) return <span className="tabular-nums">{formatMoney(Number(installment.interest))}</span>;
   return (
-    <input
-      className={`w-24 rounded border border-transparent px-1 py-0.5 text-right tabular-nums hover:border-slate-300 focus:border-emerald-500 focus:outline-none ${saving ? 'opacity-50' : ''}`}
-      inputMode="decimal"
-      value={value}
-      onChange={(e) => setValue(e.target.value)}
-      onBlur={() => void commit()}
-      onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
-      aria-label={`ดอกเบี้ยงวด ${installment.seq}`}
-    />
+    <span className='inline-flex items-center justify-end'>
+      {estimate && <span className='text-xs text-slate-400'>≈</span>}
+      <input
+        className={`w-24 rounded border border-transparent px-1 py-0.5 text-right tabular-nums hover:border-slate-300 focus:border-emerald-500 focus:outline-none ${estimate ? 'text-slate-400 italic' : ''} ${saving ? 'opacity-50' : ''}`}
+        inputMode='decimal'
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={() => void commit()}
+        onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+        aria-label={label}
+      />
+    </span>
   );
 }

@@ -26,6 +26,8 @@ export interface Debt {
   due_day: number | null;
   credit_limit: number | null;
   min_payment_percent: number | null;
+  /** Fixed payment per installment (bank-style); principal = payment - interest. */
+  installment_amount: number | null;
   closed_on: string | null;
   note: string | null;
   created_at: string;
@@ -40,6 +42,8 @@ export interface DebtInstallment {
   due_date: string;
   principal: number;
   interest: number;
+  /** Values come from a statement (not estimated). */
+  confirmed: boolean;
 }
 
 export interface DebtEntry {
