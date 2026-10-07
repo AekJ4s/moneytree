@@ -2,7 +2,7 @@ import { useMemo, useState, type FormEvent } from 'react';
 import { ErrorText } from '../../components/Modal';
 import { addDays, formatMoney, formatThaiDate, todayIso } from '../../lib/format';
 import { errorMessage } from '../../lib/useAsync';
-import { createDebt, replaceSchedule, updateDebt } from './api';
+import { createDebt, markFirstInstallmentsPaid, replaceSchedule, updateDebt } from './api';
 import { amortizedPayment, buildSchedule, monthlyRate } from './debtMath';
 import { KIND_LABEL, type Debt, type DebtInput, type DebtKind, type InterestMethod, type InterestMode } from './types';
 
@@ -46,6 +46,9 @@ export function DebtForm({ creditorId, initial, hasPayments, knownBorrowers = []
   const [creditLimit, setCreditLimit] = useState(initial?.credit_limit != null ? String(initial.credit_limit) : '');
   const [minPercent, setMinPercent] = useState(initial?.min_payment_percent != null ? String(initial.min_payment_percent) : '');
   const [note, setNote] = useState(initial?.note ?? '');
+  // New debt added late: how many installments were already paid before it was recorded.
+  const [paidCount, setPaidCount] = useState('0');
+  const [paidInterestExpense, setPaidInterestExpense] = useState(false);
   const [borrower, setBorrower] = useState(initial?.borrower ?? '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -76,6 +79,7 @@ export function DebtForm({ creditorId, initial, hasPayments, knownBorrowers = []
   }, [scheduled, principal, term, firstDue, mode, rate, method, usesRate, isFixed, payment]);
 
   const totalInterest = schedule.reduce((s, r) => s + r.interest, 0);
+  const pastDueCount = schedule.filter((r) => r.due_date < todayIso()).length;
   const firstPayment = schedule[0] ? schedule[0].principal + schedule[0].interest : 0;
 
   async function onSubmit(e: FormEvent) {
@@ -112,7 +116,9 @@ export function DebtForm({ creditorId, initial, hasPayments, knownBorrowers = []
     setError(null);
     try {
       if (!initial) {
-        await createDebt(input, schedule);
+        const debt = await createDebt(input, schedule);
+        const alreadyPaid = scheduled ? Math.min(Number(paidCount) || 0, schedule.length) : 0;
+        if (alreadyPaid > 0) await markFirstInstallmentsPaid(debt.id, alreadyPaid, paidInterestExpense);
       } else if (scheduleLocked) {
         // Schedule fields are frozen once payments exist; only descriptive fields change.
         await updateDebt(initial.id, { name: input.name, note: input.note, start_date: input.start_date, borrower: input.borrower });
@@ -316,6 +322,41 @@ export function DebtForm({ creditorId, initial, hasPayments, knownBorrowers = []
         <span className="text-sm text-slate-600">หมายเหตุ</span>
         <input className="input mt-1" value={note} onChange={(e) => setNote(e.target.value)} />
       </label>
+
+      {!initial && scheduled && schedule.length > 0 && (
+        <div className="rounded-lg bg-slate-50 p-3">
+          <div className="flex flex-wrap items-end gap-2">
+            <label className="block">
+              <span className="text-sm text-slate-600">ชำระมาแล้ว (งวด)</span>
+              <input
+                className="input mt-1 w-28"
+                type="number"
+                min={0}
+                max={schedule.length}
+                value={paidCount}
+                onChange={(e) => setPaidCount(e.target.value)}
+              />
+            </label>
+            {pastDueCount > 0 && (
+              <button type="button" className="btn-secondary text-xs" onClick={() => setPaidCount(String(pastDueCount))}>
+                ใช้ {pastDueCount} งวดที่ครบกำหนดก่อนวันนี้
+              </button>
+            )}
+          </div>
+          {Number(paidCount) > 0 && (
+            <>
+              <p className="mt-1 text-xs text-slate-500">
+                งวด 1–{Math.min(Number(paidCount), schedule.length)} จะถูกบันทึกว่าชำระแล้วตามวันครบกำหนด (
+                {formatThaiDate(schedule[0].due_date)} – {formatThaiDate(schedule[Math.min(Number(paidCount), schedule.length) - 1].due_date)})
+              </p>
+              <label className="mt-1 flex items-center gap-2 text-xs">
+                <input type="checkbox" checked={paidInterestExpense} onChange={(e) => setPaidInterestExpense(e.target.checked)} />
+                นับดอกเบี้ยของงวดที่ชำระแล้วเป็นรายจ่าย (ปกติไม่ต้อง ถ้าเป็นช่วงก่อนเริ่มใช้ระบบ)
+              </label>
+            </>
+          )}
+        </div>
+      )}
 
       {scheduled && schedule.length > 0 && !scheduleLocked && (
         <div className="rounded-lg bg-slate-50 p-3 text-sm">

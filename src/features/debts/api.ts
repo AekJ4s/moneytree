@@ -193,3 +193,23 @@ export async function rolloverRevolving(input: {
 }
 
 export type CreditorInput = Pick<Creditor, 'name' | 'logo' | 'credit_limit' | 'statement_day' | 'due_day'>;
+
+/** Marks installments as paid on their due dates; already-paid ones are skipped. Returns how many were marked. */
+export async function markInstallmentsPaid(installmentIds: string[], recordInterest: boolean): Promise<number> {
+  if (installmentIds.length === 0) return 0;
+  return unwrap(
+    await supabase.rpc('mark_installments_paid', { p_installment_ids: installmentIds, p_record_interest: recordInterest }),
+  ) as number;
+}
+
+/** For a debt added late: marks its first `count` installments as paid on their due dates. */
+export async function markFirstInstallmentsPaid(debtId: string, count: number, recordInterest: boolean): Promise<number> {
+  if (count <= 0) return 0;
+  const rows = unwrap(
+    await supabase.from('debt_installments').select('id').eq('debt_id', debtId).order('seq').limit(count),
+  ) as { id: string }[];
+  return markInstallmentsPaid(
+    rows.map((r) => r.id),
+    recordInterest,
+  );
+}

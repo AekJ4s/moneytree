@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { ErrorText, Modal } from '../../components/Modal';
 import { formatMoney, formatThaiDate, todayIso } from '../../lib/format';
 import { errorMessage } from '../../lib/useAsync';
-import { deleteDebt, deleteDebtEntry, updateDebt, updateInstallments } from './api';
+import { deleteDebt, deleteDebtEntry, markInstallmentsPaid, updateDebt, updateInstallments } from './api';
 import { monthlyRate, paidInstallmentIds, summarizeDebt } from './debtMath';
 import { DebtForm } from './DebtForm';
 import { EntryForm } from './EntryForm';
@@ -38,11 +38,24 @@ export function DebtCard({ debt, installments, entries, onChanged }: Props) {
   const [open, setOpen] = useState(false);
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Installments ticked for "mark as paid on their due dates".
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [selectedInterestExpense, setSelectedInterestExpense] = useState(false);
   const today = todayIso();
   const s = summarizeDebt(debt, installments, entries, today);
   const paid = paidInstallmentIds(entries);
   const closed = !!debt.closed_on;
   const fixedPayment = !!debt.installment_amount;
+  const unpaidIds = installments.filter((i) => !paid.has(i.id)).map((i) => i.id);
+
+  function toggleSelected(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
   // Interest and fees are my costs; paying a card/credit-line bill is not (what was bought was counted
   // when it happened), while paying an installment is. A charge may be a purchase or a cash draw, so the
   // user decides. Money used by someone else is never my expense.
@@ -150,10 +163,45 @@ export function DebtCard({ debt, installments, entries, onChanged }: Props) {
 
           {debt.kind !== 'revolving' && (
             <div className="-mx-3 overflow-x-auto">
+              {selected.size > 0 && (
+                <div className="mx-3 mb-2 flex flex-wrap items-center gap-2 rounded-lg bg-emerald-50 p-2 text-sm">
+                  <button
+                    className="btn-primary px-2 py-1 text-xs"
+                    onClick={() =>
+                      void run(async () => {
+                        await markInstallmentsPaid([...selected], selectedInterestExpense);
+                        setSelected(new Set());
+                      })
+                    }
+                  >
+                    ✓ ชำระแล้ว {selected.size} งวด (ตามวันครบกำหนด)
+                  </button>
+                  <label className="flex items-center gap-1 text-xs">
+                    <input
+                      type="checkbox"
+                      checked={selectedInterestExpense}
+                      onChange={(e) => setSelectedInterestExpense(e.target.checked)}
+                    />
+                    {debt.borrower ? `เพิ่มดอกเบี้ยในรอรับจาก ${debt.borrower}` : 'นับดอกเบี้ยเป็นรายจ่าย'}
+                  </label>
+                  <button className="text-xs text-slate-500 hover:underline" onClick={() => setSelected(new Set())}>
+                    ยกเลิกการเลือก
+                  </button>
+                </div>
+              )}
               <table className="w-full min-w-[520px] text-sm">
                 <thead className="text-left text-xs text-slate-500">
                   <tr>
-                    <th className="px-3 py-1">งวด</th>
+                    <th className="pl-3 py-1">
+                      <input
+                        type="checkbox"
+                        aria-label="เลือกทุกงวดที่ยังไม่ชำระ"
+                        disabled={closed || unpaidIds.length === 0}
+                        checked={unpaidIds.length > 0 && unpaidIds.every((id) => selected.has(id))}
+                        onChange={(e) => setSelected(e.target.checked ? new Set(unpaidIds) : new Set())}
+                      />
+                    </th>
+                    <th className="px-2 py-1">งวด</th>
                     <th className="py-1">ครบกำหนด</th>
                     <th className="py-1 text-right">เงินต้น</th>
                     <th className="py-1 text-right">ดอกเบี้ย</th>
@@ -168,8 +216,18 @@ export function DebtCard({ debt, installments, entries, onChanged }: Props) {
                     const overdue = !isPaid && i.due_date < today;
                     const estimated = fixedPayment && !i.confirmed && !isPaid;
                     return (
-                      <tr key={i.id} className={isPaid ? 'text-slate-400' : ''}>
-                        <td className="px-3 py-1.5 tabular-nums">{i.seq}</td>
+                      <tr key={i.id} className={isPaid ? 'text-slate-400' : selected.has(i.id) ? 'bg-emerald-50' : ''}>
+                        <td className="pl-3 py-1.5">
+                          {!isPaid && !closed && (
+                            <input
+                              type="checkbox"
+                              aria-label={`เลือกงวด ${i.seq}`}
+                              checked={selected.has(i.id)}
+                              onChange={() => toggleSelected(i.id)}
+                            />
+                          )}
+                        </td>
+                        <td className="px-2 py-1.5 tabular-nums">{i.seq}</td>
                         <td className={`py-1.5 whitespace-nowrap ${overdue ? 'text-rose-600' : ''}`}>{formatThaiDate(i.due_date)}</td>
                         <td className="py-1.5 text-right">
                           <AmountCell
