@@ -7,6 +7,8 @@ import type { Payee, Transaction, TxnType } from '../../lib/types';
 import { errorMessage } from '../../lib/useAsync';
 import { CardBillingHint } from '../debts/CardBillingHint';
 import type { Creditor } from '../debts/types';
+import type { Asset } from '../assets/types';
+import { isSavingsCategory } from '../../lib/savings';
 import { ensurePayee } from '../payees/api';
 import { createRecurring } from '../recurring/api';
 import { createTransaction, updateTransaction } from './api';
@@ -16,12 +18,14 @@ interface Props {
   categories: string[];
   /** Cards / credit lines an expense can be charged to. */
   creditors?: Creditor[];
+  /** Where savings/investment money can be kept. */
+  assets?: Asset[];
   initial?: Transaction;
   defaultDate?: string;
   onSaved: () => void;
 }
 
-export function TransactionForm({ payees, categories, creditors = [], initial, defaultDate, onSaved }: Props) {
+export function TransactionForm({ payees, categories, creditors = [], assets = [], initial, defaultDate, onSaved }: Props) {
   const [type, setType] = useState<TxnType>(initial?.type ?? 'expense');
   const [amount, setAmount] = useState(initial ? String(initial.amount) : '');
   const [date, setDate] = useState(initial?.txn_date ?? defaultDate ?? todayIso());
@@ -32,6 +36,8 @@ export function TransactionForm({ payees, categories, creditors = [], initial, d
   // '' = paid from the account; otherwise the creditor (card) it was charged to.
   const [cardId, setCardId] = useState(initial?.payment_method === 'card' ? (initial.creditor_id ?? '') : '');
   const [makeRecurring, setMakeRecurring] = useState(false);
+  const [assetId, setAssetId] = useState(initial?.asset_id ?? '');
+  const savings = isSavingsCategory(category) || !!assetId;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -57,7 +63,8 @@ export function TransactionForm({ payees, categories, creditors = [], initial, d
       const payee = payeeName.trim() ? await ensurePayee(payeeName, type, category.trim() || null) : null;
       // Interest booked by a debt payment keeps its method; otherwise expenses are cash or card.
       const keepDebt = initial?.payment_method === 'debt';
-      const card = type === 'expense' && !keepDebt && cardId ? creditors.find((c) => c.id === cardId) : undefined;
+      // Savings move money out of the account, so they are never charged to a card.
+      const card = type === 'expense' && !keepDebt && !savings && cardId ? creditors.find((c) => c.id === cardId) : undefined;
       const fields = {
         type,
         amount: value,
@@ -68,7 +75,8 @@ export function TransactionForm({ payees, categories, creditors = [], initial, d
         note: note.trim() || null,
         payment_method: keepDebt ? ('debt' as const) : card ? ('card' as const) : ('cash' as const),
         creditor_id: keepDebt ? (initial?.creditor_id ?? null) : (card?.id ?? null),
-        account: keepDebt ? (initial?.account ?? null) : (card?.name ?? null),
+        account: keepDebt ? (initial?.account ?? null) : (card?.name ?? assets.find((a) => a.id === assetId)?.name ?? null),
+        asset_id: savings && assetId ? assetId : null,
       };
       // Optionally turn this entry (new or already saved) into a monthly recurring item.
       let recurringId: string | null = initial?.recurring_id ?? null;
@@ -155,7 +163,21 @@ export function TransactionForm({ payees, categories, creditors = [], initial, d
         <span className="text-sm text-slate-600">หมายเหตุ</span>
         <input className="input mt-1" value={note} onChange={(e) => setNote(e.target.value)} />
       </label>
-      {type === 'expense' && initial?.payment_method !== 'debt' && (
+      {savings && (
+        <label className="block">
+          <span className="text-sm text-slate-600">{type === 'expense' ? 'เก็บไว้ที่' : 'ถอนจาก'}</span>
+          <select className="input mt-1" value={assetId} onChange={(e) => setAssetId(e.target.value)}>
+            <option value="">ไม่ระบุ</option>
+            {assets.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.icon} {a.name}
+              </option>
+            ))}
+          </select>
+          <span className="mt-1 block text-xs text-amber-700">🪙 ออม/ลงทุน ไม่นับเป็นรายรับ-รายจ่าย</span>
+        </label>
+      )}
+      {type === 'expense' && !savings && initial?.payment_method !== 'debt' && (
         <label className="block">
           <span className="text-sm text-slate-600">จ่ายผ่าน</span>
           <select className="input mt-1" value={cardId} onChange={(e) => setCardId(e.target.value)}>

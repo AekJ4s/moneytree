@@ -12,7 +12,9 @@ import { TransactionForm } from './TransactionForm';
 import { EntryHub } from '../money/EntryHub';
 import { listCashMovements } from '../money/api';
 import { listCreditors } from '../debts/api';
-import { sumByType, TransactionList } from './TransactionList';
+import { listAssets } from '../assets/api';
+import { amountColor, TransactionList } from './TransactionList';
+import { sumMoney } from '../../lib/savings';
 
 const WEEKDAYS = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'];
 
@@ -31,7 +33,7 @@ export function DailyPage() {
   const [actionError, setActionError] = useState<string | null>(null);
 
   const month = useAsync(() => listTransactions(from, to), [from, to]);
-  const lookups = useAsync(() => Promise.all([listPayees(), listCategories(), listCreditors()]), []);
+  const lookups = useAsync(() => Promise.all([listPayees(), listCategories(), listCreditors(), listAssets()]), []);
   const movements = useAsync(() => listCashMovements(from, to), [from, to]);
 
   const byDay = useMemo(() => {
@@ -46,8 +48,8 @@ export function DailyPage() {
   );
   const slipPaths = dayTxns.map((t) => t.slip_image_path).filter((p): p is string => !!p);
   const slipUrls = useAsync(() => signSlipUrls(slipPaths), [slipPaths.join('|')]);
-  const dayTotals = sumByType(dayTxns);
-  const monthTotals = sumByType(month.data ?? []);
+  const dayTotals = sumMoney(dayTxns);
+  const monthTotals = sumMoney(month.data ?? []);
 
   function selectDate(iso: string) {
     setParams({ date: iso });
@@ -96,7 +98,7 @@ export function DailyPage() {
         <div className="mt-1 grid grid-cols-7 gap-1">
           {cells.map((iso, i) => {
             if (!iso) return <div key={`blank-${i}`} />;
-            const totals = sumByType(byDay.get(iso) ?? []);
+            const totals = sumMoney(byDay.get(iso) ?? []);
             const isSelected = iso === selected;
             const isToday = iso === todayIso();
             return (
@@ -118,14 +120,20 @@ export function DailyPage() {
                     −{Math.round(totals.expense).toLocaleString('th-TH')}
                   </span>
                 )}
+                {totals.savings !== 0 && (
+                  <span className={`text-[10px] font-semibold ${isSelected ? 'text-amber-200' : 'text-amber-500'}`}>
+                    🪙{Math.round(totals.savings).toLocaleString('th-TH')}
+                  </span>
+                )}
               </button>
             );
           })}
         </div>
-        <div className="mt-4 grid grid-cols-3 gap-2 text-center text-sm">
+        <div className="mt-4 grid grid-cols-2 gap-2 text-center text-sm sm:grid-cols-4">
           <Stat label="รายรับเดือนนี้" value={monthTotals.income} tone="income" />
           <Stat label="รายจ่ายเดือนนี้" value={monthTotals.expense} tone="expense" />
-          <Stat label="คงเหลือ" value={monthTotals.income - monthTotals.expense} tone="net" />
+          <Stat label="ออม/ลงทุนเดือนนี้" value={monthTotals.savings} tone="savings" />
+          <Stat label="คงเหลือ" value={monthTotals.income - monthTotals.expense - monthTotals.savings} tone="net" />
         </div>
         <ErrorText>{month.error}</ErrorText>
       </section>
@@ -138,6 +146,12 @@ export function DailyPage() {
               <span className="text-emerald-600">รับ {formatMoney(dayTotals.income)}</span>
               <span className="mx-2 text-slate-300">|</span>
               <span className="text-rose-600">จ่าย {formatMoney(dayTotals.expense)}</span>
+              {dayTotals.savings !== 0 && (
+                <>
+                  <span className="mx-2 text-slate-300">|</span>
+                  <span className="text-amber-600">ออม/ลงทุน {formatMoney(dayTotals.savings)}</span>
+                </>
+              )}
             </p>
           </div>
           <div className="flex gap-2">
@@ -186,7 +200,7 @@ export function DailyPage() {
                     <div className="aspect-[3/5] w-full animate-pulse rounded-lg bg-slate-100" />
                   )}
                   <div className="mt-1 truncate text-xs">{t.payee?.name ?? '—'}</div>
-                  <div className={`text-xs font-semibold ${t.type === 'income' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                  <div className={`text-xs font-semibold ${amountColor(t)}`}>
                     {formatMoney(t.amount)}
                   </div>
                 </button>
@@ -241,6 +255,7 @@ export function DailyPage() {
               payees={lookups.data?.[0] ?? []}
               categories={lookups.data?.[1] ?? []}
               creditors={lookups.data?.[2] ?? []}
+              assets={lookups.data?.[3] ?? []}
               initial={editing}
               defaultDate={selected}
               onSaved={() => {

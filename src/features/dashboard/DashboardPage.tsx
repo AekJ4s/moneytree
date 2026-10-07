@@ -8,8 +8,10 @@ import { DueRecurringList } from '../recurring/DueRecurringList';
 import { signSlipUrls } from '../slips/storage';
 import { listTransactions } from '../transactions/api';
 import { BalanceCard } from '../money/BalanceCard';
+import { TreeCard } from '../assets/TreeCard';
 import { EntryHub } from '../money/EntryHub';
-import { sumByType, TransactionList } from '../transactions/TransactionList';
+import { TransactionList } from '../transactions/TransactionList';
+import { isSavings, sumMoney } from '../../lib/savings';
 
 export function DashboardPage() {
   const now = new Date();
@@ -19,9 +21,9 @@ export function DashboardPage() {
   const [refreshKey, setRefreshKey] = useState(0);
 
   const txns = month.data ?? [];
-  const totals = sumByType(txns);
+  const totals = sumMoney(txns);
   const today = txns.filter((t) => t.txn_date === todayIso());
-  const todayTotals = sumByType(today);
+  const todayTotals = sumMoney(today);
   const recent = txns.slice(0, 10);
   const slipPaths = recent.map((t) => t.slip_image_path).filter((p): p is string => !!p);
   const slipUrls = useAsync(() => signSlipUrls(slipPaths), [slipPaths.join('|')]);
@@ -29,7 +31,7 @@ export function DashboardPage() {
   const topCategories = useMemo(() => {
     const map = new Map<string, number>();
     for (const t of txns) {
-      if (t.type !== 'expense') continue;
+      if (t.type !== 'expense' || isSavings(t)) continue;
       const key = t.category ?? t.payee?.name ?? 'ไม่ระบุ';
       map.set(key, (map.get(key) ?? 0) + Number(t.amount));
     }
@@ -55,12 +57,14 @@ export function DashboardPage() {
         </div>
       </div>
 
+      <TreeCard refreshKey={refreshKey} />
       <BalanceCard refreshKey={refreshKey} />
 
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         <Stat label="รายรับเดือนนี้" value={totals.income} tone="income" />
         <Stat label="รายจ่ายเดือนนี้" value={totals.expense} tone="expense" />
-        <Stat label="คงเหลือ" value={totals.income - totals.expense} tone="net" />
+        <Stat label="ออม/ลงทุนเดือนนี้" value={totals.savings} tone="savings" />
+        <Stat label="คงเหลือ" value={totals.income - totals.expense - totals.savings} tone="net" />
       </div>
       <ErrorText>{month.error}</ErrorText>
 

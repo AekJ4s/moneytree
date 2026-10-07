@@ -40,6 +40,8 @@ export interface Transaction {
   import_key: string | null;
   payment_method: PaymentMethod;
   creditor_id: string | null;
+  /** Where savings/investment money went (or came back from). */
+  asset_id: string | null;
   created_at: string;
   payee?: Pick<Payee, 'id' | 'name'> | null;
 }

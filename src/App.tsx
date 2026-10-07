@@ -12,6 +12,7 @@ const RecurringPage = lazy(() => import('./features/recurring/RecurringPage').th
 const ImportPage = lazy(() => import('./features/import/ImportPage').then((m) => ({ default: m.ImportPage })));
 const DebtsPage = lazy(() => import('./features/debts/DebtsPage').then((m) => ({ default: m.DebtsPage })));
 const CreditorPage = lazy(() => import('./features/debts/CreditorPage').then((m) => ({ default: m.CreditorPage })));
+const AssetsPage = lazy(() => import('./features/assets/AssetsPage').then((m) => ({ default: m.AssetsPage })));
 const PayeesPage = lazy(() => import('./features/payees/PayeesPage').then((m) => ({ default: m.PayeesPage })));
 
 const loading = <div className="p-8 text-center text-slate-400">กำลังโหลด…</div>;
@@ -44,6 +45,7 @@ export function App() {
               <Route path="import" element={<ImportPage />} />
               <Route path="debts" element={<DebtsPage />} />
               <Route path="debts/:creditorId" element={<CreditorPage />} />
+              <Route path="assets" element={<AssetsPage />} />
               <Route path="payees" element={<PayeesPage />} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />

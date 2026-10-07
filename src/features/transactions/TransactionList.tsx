@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ImageViewer } from '../../components/Modal';
 import { formatMoney, formatThaiDate } from '../../lib/format';
+import { isSavings } from '../../lib/savings';
 import type { Transaction, TxnSource } from '../../lib/types';
 
 interface Props {
@@ -39,10 +40,10 @@ export function TransactionList({ transactions, slipUrls = {}, showDate, onEdit,
               ) : (
                 <div
                   className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-md text-lg ${
-                    t.type === 'income' ? 'bg-emerald-50' : 'bg-rose-50'
+                    isSavings(t) ? 'bg-amber-50' : t.type === 'income' ? 'bg-emerald-50' : 'bg-rose-50'
                   }`}
                 >
-                  {t.source === 'recurring' ? '🔁' : t.type === 'income' ? '⬇️' : '⬆️'}
+                  {isSavings(t) ? '🪙' : t.source === 'recurring' ? '🔁' : t.type === 'income' ? '⬇️' : '⬆️'}
                 </div>
               )}
               <div className="min-w-0 flex-1">
@@ -52,9 +53,7 @@ export function TransactionList({ transactions, slipUrls = {}, showDate, onEdit,
                 <div className="truncate text-xs text-slate-500">{meta.join(' · ')}</div>
               </div>
               <div
-                className={`shrink-0 text-right font-semibold tabular-nums ${
-                  t.type === 'income' ? 'text-emerald-600' : 'text-rose-600'
-                }`}
+                className={`shrink-0 text-right font-semibold tabular-nums ${amountColor(t)}`}
               >
                 {t.type === 'income' ? '+' : '−'}
                 {formatMoney(t.amount)}
@@ -82,12 +81,8 @@ export function TransactionList({ transactions, slipUrls = {}, showDate, onEdit,
   );
 }
 
-export function sumByType(transactions: Transaction[]): { income: number; expense: number } {
-  return transactions.reduce(
-    (acc, t) => {
-      acc[t.type] += Number(t.amount);
-      return acc;
-    },
-    { income: 0, expense: 0 },
-  );
+/** Gold for savings/investments, green for income, red for expenses. */
+export function amountColor(t: Pick<Transaction, 'type' | 'category' | 'asset_id'>): string {
+  if (isSavings(t)) return 'text-amber-600';
+  return t.type === 'income' ? 'text-emerald-600' : 'text-rose-600';
 }
