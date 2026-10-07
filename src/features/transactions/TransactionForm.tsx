@@ -70,31 +70,32 @@ export function TransactionForm({ payees, categories, creditors = [], initial, d
         creditor_id: keepDebt ? (initial?.creditor_id ?? null) : (card?.id ?? null),
         account: keepDebt ? (initial?.account ?? null) : (card?.name ?? null),
       };
-      if (initial) {
-        await updateTransaction(initial.id, fields);
-      } else {
-        let recurringId: string | null = null;
-        if (makeRecurring) {
-          const day = Number(date.slice(8, 10));
-          const rule = { interval_unit: 'month' as const, interval_count: 1, due_day: day, due_last_day: false };
-          recurringId = await createRecurring({
-            name: payee?.name ?? (note.trim() || category.trim() || (type === 'income' ? 'รายรับประจำ' : 'รายจ่ายประจำ')),
-            type,
-            amount: value,
-            category: fields.category,
-            payee_id: fields.payee_id,
-            interval_unit: 'month',
-            interval_count: 1,
-            due_day: day,
-            due_last_day: false,
-            next_due_date: nextDueDate(date, rule),
-            pay_creditor_id: card?.id ?? null,
-            note: null,
-            active: true,
-          });
-        }
-        await createTransaction({ ...fields, source: 'manual', recurring_id: recurringId });
+      // Optionally turn this entry (new or already saved) into a monthly recurring item.
+      let recurringId: string | null = initial?.recurring_id ?? null;
+      if (makeRecurring && !recurringId) {
+        const day = Number(date.slice(8, 10));
+        const rule = { interval_unit: 'month' as const, interval_count: 1, due_day: day, due_last_day: false };
+        // Next occurrence after this one, skipping months that are already in the past.
+        let next = nextDueDate(date, rule);
+        while (next < todayIso()) next = nextDueDate(next, rule);
+        recurringId = await createRecurring({
+          name: payee?.name ?? (note.trim() || category.trim() || (type === 'income' ? 'รายรับประจำ' : 'รายจ่ายประจำ')),
+          type,
+          amount: value,
+          category: fields.category,
+          payee_id: fields.payee_id,
+          interval_unit: 'month',
+          interval_count: 1,
+          due_day: day,
+          due_last_day: false,
+          next_due_date: next,
+          pay_creditor_id: card?.id ?? null,
+          note: null,
+          active: true,
+        });
       }
+      if (initial) await updateTransaction(initial.id, { ...fields, recurring_id: recurringId });
+      else await createTransaction({ ...fields, source: 'manual', recurring_id: recurringId });
       onSaved();
     } catch (err) {
       setError(errorMessage(err));
@@ -173,7 +174,9 @@ export function TransactionForm({ payees, categories, creditors = [], initial, d
           <CardBillingHint card={creditors.find((c) => c.id === cardId)} date={date} />
         </label>
       )}
-      {!initial && (
+      {initial?.recurring_id ? (
+        <p className="text-xs text-slate-500">🔁 รายการนี้เป็นรายการประจำแล้ว — แก้รอบ/ยอดได้ที่หน้ารายการประจำ</p>
+      ) : (
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={makeRecurring} onChange={(e) => setMakeRecurring(e.target.checked)} />
           ทำเป็น{type === 'income' ? 'รายรับ' : 'รายจ่าย'}ประจำทุกเดือน (วันที่ {Number(date.slice(8, 10)) || '–'})
