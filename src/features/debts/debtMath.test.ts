@@ -224,3 +224,15 @@ describe('splitInterest (LINE BK statement 30/09/2026, interest 1,399.53)', () =
     expect(split).toEqual({ mom: 100, me: 0 });
   });
 });
+
+describe('splitInterest with an interest-free portion (actual LINE BK 30/09/2026)', () => {
+  const targets: InterestSplitTarget[] = [
+    { id: 'me', balance: 11183.22, borrower: null, annualPercent: 0, accruesFrom: '2026-10-07' },
+    { id: 'mom', balance: 60000, borrower: 'แม่', annualPercent: 24, accruesFrom: '2026-09-19' },
+  ];
+
+  it('gives all interest to the interest-bearing portion', () => {
+    expect(splitInterest(1399.53, targets, 'days', '2026-09-30')).toEqual({ me: 0, mom: 1399.53 });
+    expect(splitInterest(1399.53, targets, 'balance', '2026-09-30')).toEqual({ me: 0, mom: 1399.53 });
+  });
+});

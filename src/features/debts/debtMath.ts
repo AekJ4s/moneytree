@@ -287,11 +287,15 @@ export function splitInterest(
   method: 'balance' | 'days',
   statementDate: string,
 ): Record<string, number> {
-  if (targets.length === 0) return {};
-  if (method === 'balance') return proportional(total, targets.map((t) => t.id), targets.map((t) => t.balance));
+  // Interest-free portions (0%) never take a share, unless nothing else bears interest.
+  const bearing = targets.filter((t) => t.annualPercent > 0);
+  const pool = bearing.length > 0 ? bearing : targets;
+  const zeros = Object.fromEntries(targets.filter((t) => !pool.includes(t)).map((t) => [t.id, 0]));
+  if (pool.length === 0) return {};
+  if (method === 'balance') return { ...zeros, ...proportional(total, pool.map((t) => t.id), pool.map((t) => t.balance)) };
 
-  const others = targets.filter((t) => t.borrower);
-  const own = targets.filter((t) => !t.borrower);
+  const others = pool.filter((t) => t.borrower);
+  const own = pool.filter((t) => !t.borrower);
   // With no owner portion, the last other portion takes the remainder instead.
   const charged = own.length > 0 ? others : others.slice(0, -1);
   const remainderTargets = own.length > 0 ? own : others.slice(-1);
@@ -304,6 +308,7 @@ export function splitInterest(
     used = round2(used + out[t.id]);
   }
   return {
+    ...zeros,
     ...out,
     ...proportional(round2(total - used), remainderTargets.map((t) => t.id), remainderTargets.map((t) => t.balance)),
   };
