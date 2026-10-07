@@ -13,6 +13,7 @@ import { EntryHub } from '../money/EntryHub';
 import { listCashMovements } from '../money/api';
 import { listCreditors } from '../debts/api';
 import { listAssets } from '../assets/api';
+import { listIncomeSources } from '../income/api';
 import { amountColor, TransactionList } from './TransactionList';
 import { sumMoney } from '../../lib/savings';
 
@@ -33,7 +34,7 @@ export function DailyPage() {
   const [actionError, setActionError] = useState<string | null>(null);
 
   const month = useAsync(() => listTransactions(from, to), [from, to]);
-  const lookups = useAsync(() => Promise.all([listPayees(), listCategories(), listCreditors(), listAssets()]), []);
+  const lookups = useAsync(() => Promise.all([listPayees(), listCategories(), listCreditors(), listAssets(), listIncomeSources()]), []);
   const movements = useAsync(() => listCashMovements(from, to), [from, to]);
 
   const byDay = useMemo(() => {
@@ -256,6 +257,8 @@ export function DailyPage() {
               categories={lookups.data?.[1] ?? []}
               creditors={lookups.data?.[2] ?? []}
               assets={lookups.data?.[3] ?? []}
+              incomeSources={lookups.data?.[4] ?? []}
+              onIncomeSourcesChanged={lookups.reload}
               initial={editing}
               defaultDate={selected}
               onSaved={() => {

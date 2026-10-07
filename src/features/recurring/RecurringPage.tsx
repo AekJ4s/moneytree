@@ -13,11 +13,15 @@ import { DueRecurringList } from './DueRecurringList';
 import { listCreditors } from '../debts/api';
 import type { Creditor } from '../debts/types';
 import { CardBillingHint } from '../debts/CardBillingHint';
+import { listIncomeSources } from '../income/api';
+import { IncomeSourceSelect } from '../income/IncomeSourceSelect';
+import { sourceIcon, type IncomeSource } from '../income/types';
 
 export function RecurringPage() {
   const items = useAsync(listRecurring, []);
-  const lookups = useAsync(() => Promise.all([listPayees(), listCategories(), listCreditors()]), []);
+  const lookups = useAsync(() => Promise.all([listPayees(), listCategories(), listCreditors(), listIncomeSources()]), []);
   const cards = lookups.data?.[2] ?? [];
+  const sources = lookups.data?.[3] ?? [];
   const [editing, setEditing] = useState<RecurringItem | 'new' | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -83,6 +87,10 @@ export function RecurringPage() {
                         {!item.active && ' · หยุดไว้'}
                       </div>
                       <CardBillingHint card={cards.find((c) => c.id === item.pay_creditor_id)} date={item.next_due_date} />
+                      {(() => {
+                        const src = sources.find((x) => x.id === item.income_source_id);
+                        return src ? <div className="text-xs text-emerald-700">{sourceIcon(src)} {src.name}</div> : null;
+                      })()}
                     </div>
                     <div className={`font-semibold tabular-nums ${type === 'income' ? 'text-emerald-600' : 'text-rose-600'}`}>
                       {formatMoney(item.amount)}
@@ -113,6 +121,8 @@ export function RecurringPage() {
             payees={lookups.data?.[0] ?? []}
             categories={lookups.data?.[1] ?? []}
             cards={cards}
+            sources={sources}
+            onSourcesChanged={lookups.reload}
             onSaved={() => {
               setEditing(null);
               items.reload();
@@ -145,10 +155,12 @@ interface FormProps {
   payees: Payee[];
   categories: string[];
   cards: Creditor[];
+  sources: IncomeSource[];
+  onSourcesChanged: () => void;
   onSaved: () => void;
 }
 
-function RecurringForm({ initial, payees, categories, cards, onSaved }: FormProps) {
+function RecurringForm({ initial, payees, categories, cards, sources, onSourcesChanged, onSaved }: FormProps) {
   const [name, setName] = useState(initial?.name ?? '');
   const [type, setType] = useState<TxnType>(initial?.type ?? 'expense');
   const [amount, setAmount] = useState(initial ? String(initial.amount) : '');
@@ -162,6 +174,7 @@ function RecurringForm({ initial, payees, categories, cards, onSaved }: FormProp
   const [payeeName, setPayeeName] = useState(payees.find((p) => p.id === initial?.payee_id)?.name ?? '');
   const [category, setCategory] = useState(initial?.category ?? '');
   const [payCreditorId, setPayCreditorId] = useState(initial?.pay_creditor_id ?? '');
+  const [sourceId, setSourceId] = useState(initial?.income_source_id ?? '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -189,6 +202,7 @@ function RecurringForm({ initial, payees, categories, cards, onSaved }: FormProp
     e.preventDefault();
     const value = Number(amount);
     if (!(value > 0)) return setError('จำนวนเงินต้องมากกว่า 0');
+    if (type === 'income' && !sourceId) return setError('รายรับประจำต้องระบุว่ามาจากแหล่งไหน');
     if (!(intervalCount >= 1 && intervalCount <= 60)) return setError('ความถี่ต้องอยู่ระหว่าง 1–60');
     setBusy(true);
     setError(null);
@@ -206,6 +220,7 @@ function RecurringForm({ initial, payees, categories, cards, onSaved }: FormProp
         payee_id: payee?.id ?? null,
         category: category.trim() || null,
         pay_creditor_id: type === 'expense' && payCreditorId ? payCreditorId : null,
+        income_source_id: type === 'income' ? sourceId : null,
         note: null,
         active: initial?.active ?? true,
       };
@@ -274,6 +289,9 @@ function RecurringForm({ initial, payees, categories, cards, onSaved }: FormProp
           <input className="input mt-1" list="category-options" value={category} onChange={(e) => setCategory(e.target.value)} />
         </label>
       </div>
+      {type === 'income' && (
+        <IncomeSourceSelect sources={sources} value={sourceId} onChange={setSourceId} onCreated={onSourcesChanged} required />
+      )}
       {type === 'expense' && (
         <label className="block">
           <span className="text-sm text-slate-600">จ่ายผ่าน</span>

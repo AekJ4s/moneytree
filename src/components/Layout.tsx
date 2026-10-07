@@ -18,6 +18,7 @@ const NAV: NavItem[] = [
   { to: '/assets', label: 'ออม/ลงทุน', short: 'ออม', icon: '🪙', primary: true },
   { to: '/debts', label: 'หนี้สิน', short: 'หนี้', icon: '💳', primary: true },
   { to: '/recurring', label: 'รายการประจำ', short: 'ประจำ', icon: '🔁' },
+  { to: '/income', label: 'แหล่งรายได้', short: 'รายได้', icon: '💼' },
   { to: '/import', label: 'นำเข้า', short: 'นำเข้า', icon: '📥' },
   { to: '/payees', label: 'ผู้รับ/แมป', short: 'แมป', icon: '🏷️' },
 ];

@@ -8,6 +8,7 @@ import { PayDebtForm } from './PayDebtForm';
 import { ReceivableForm } from './ReceivableForm';
 import { SavingsForm } from '../assets/SavingsForm';
 import { listAssets } from '../assets/api';
+import { listIncomeSources } from '../income/api';
 
 type Tab = 'money' | 'save' | 'pay' | 'people';
 
@@ -21,7 +22,7 @@ const TABS: { value: Tab; label: string }[] = [
 /** The one place to record anything that happened with money. */
 export function EntryHub({ defaultDate, onSaved }: { defaultDate?: string; onSaved: () => void }) {
   const [tab, setTab] = useState<Tab>('money');
-  const lookups = useAsync(() => Promise.all([listPayees(), listCategories(), listCreditors(), listAssets()]), []);
+  const lookups = useAsync(() => Promise.all([listPayees(), listCategories(), listCreditors(), listAssets(), listIncomeSources()]), []);
 
   return (
     <div className="space-y-4">
@@ -43,6 +44,8 @@ export function EntryHub({ defaultDate, onSaved }: { defaultDate?: string; onSav
           categories={lookups.data?.[1] ?? []}
           creditors={lookups.data?.[2] ?? []}
           assets={lookups.data?.[3] ?? []}
+          incomeSources={lookups.data?.[4] ?? []}
+          onIncomeSourcesChanged={lookups.reload}
           defaultDate={defaultDate}
           onSaved={onSaved}
         />

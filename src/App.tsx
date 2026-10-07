@@ -13,6 +13,7 @@ const ImportPage = lazy(() => import('./features/import/ImportPage').then((m) =>
 const DebtsPage = lazy(() => import('./features/debts/DebtsPage').then((m) => ({ default: m.DebtsPage })));
 const CreditorPage = lazy(() => import('./features/debts/CreditorPage').then((m) => ({ default: m.CreditorPage })));
 const AssetsPage = lazy(() => import('./features/assets/AssetsPage').then((m) => ({ default: m.AssetsPage })));
+const IncomePage = lazy(() => import('./features/income/IncomePage').then((m) => ({ default: m.IncomePage })));
 const PayeesPage = lazy(() => import('./features/payees/PayeesPage').then((m) => ({ default: m.PayeesPage })));
 
 const loading = <div className="p-8 text-center text-slate-400">กำลังโหลด…</div>;
@@ -46,6 +47,7 @@ export function App() {
               <Route path="debts" element={<DebtsPage />} />
               <Route path="debts/:creditorId" element={<CreditorPage />} />
               <Route path="assets" element={<AssetsPage />} />
+              <Route path="income" element={<IncomePage />} />
               <Route path="payees" element={<PayeesPage />} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />

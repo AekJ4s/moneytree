@@ -42,6 +42,8 @@ export interface Transaction {
   creditor_id: string | null;
   /** Where savings/investment money went (or came back from). */
   asset_id: string | null;
+  /** Which job / income source an income came from. */
+  income_source_id: string | null;
   created_at: string;
   payee?: Pick<Payee, 'id' | 'name'> | null;
 }
@@ -62,6 +64,8 @@ export interface RecurringItem {
   due_last_day: boolean;
   /** Charged to this creditor's card / credit line; recording also adds a charge to it. */
   pay_creditor_id: string | null;
+  /** Recurring income: which job / income source it comes from. */
+  income_source_id: string | null;
   active: boolean;
   note: string | null;
   created_at: string;

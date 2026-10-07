@@ -8,6 +8,8 @@ import { errorMessage } from '../../lib/useAsync';
 import { CardBillingHint } from '../debts/CardBillingHint';
 import type { Creditor } from '../debts/types';
 import type { Asset } from '../assets/types';
+import { IncomeSourceSelect } from '../income/IncomeSourceSelect';
+import type { IncomeSource } from '../income/types';
 import { isSavingsCategory } from '../../lib/savings';
 import { ensurePayee } from '../payees/api';
 import { createRecurring } from '../recurring/api';
@@ -20,12 +22,25 @@ interface Props {
   creditors?: Creditor[];
   /** Where savings/investment money can be kept. */
   assets?: Asset[];
+  /** Jobs / income sources an income can come from. */
+  incomeSources?: IncomeSource[];
+  onIncomeSourcesChanged?: () => void;
   initial?: Transaction;
   defaultDate?: string;
   onSaved: () => void;
 }
 
-export function TransactionForm({ payees, categories, creditors = [], assets = [], initial, defaultDate, onSaved }: Props) {
+export function TransactionForm({
+  payees,
+  categories,
+  creditors = [],
+  assets = [],
+  incomeSources = [],
+  onIncomeSourcesChanged,
+  initial,
+  defaultDate,
+  onSaved,
+}: Props) {
   const [type, setType] = useState<TxnType>(initial?.type ?? 'expense');
   const [amount, setAmount] = useState(initial ? String(initial.amount) : '');
   const [date, setDate] = useState(initial?.txn_date ?? defaultDate ?? todayIso());
@@ -38,6 +53,8 @@ export function TransactionForm({ payees, categories, creditors = [], assets = [
   const [makeRecurring, setMakeRecurring] = useState(false);
   const [assetId, setAssetId] = useState(initial?.asset_id ?? '');
   const savings = isSavingsCategory(category) || !!assetId;
+  const [sourceId, setSourceId] = useState(initial?.income_source_id ?? '');
+  const showSource = type === 'income' && !savings;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -55,6 +72,10 @@ export function TransactionForm({ payees, categories, creditors = [], assets = [
     const value = Number(amount);
     if (!(value > 0)) {
       setError('จำนวนเงินต้องมากกว่า 0');
+      return;
+    }
+    if (showSource && makeRecurring && !initial?.recurring_id && !sourceId) {
+      setError('รายรับประจำต้องระบุว่ามาจากแหล่งไหน');
       return;
     }
     setBusy(true);
@@ -77,6 +98,7 @@ export function TransactionForm({ payees, categories, creditors = [], assets = [
         creditor_id: keepDebt ? (initial?.creditor_id ?? null) : (card?.id ?? null),
         account: keepDebt ? (initial?.account ?? null) : (card?.name ?? assets.find((a) => a.id === assetId)?.name ?? null),
         asset_id: savings && assetId ? assetId : null,
+        income_source_id: showSource && sourceId ? sourceId : null,
       };
       // Optionally turn this entry (new or already saved) into a monthly recurring item.
       let recurringId: string | null = initial?.recurring_id ?? null;
@@ -98,6 +120,7 @@ export function TransactionForm({ payees, categories, creditors = [], assets = [
           due_last_day: false,
           next_due_date: next,
           pay_creditor_id: card?.id ?? null,
+          income_source_id: fields.income_source_id,
           note: null,
           active: true,
         });
@@ -163,6 +186,15 @@ export function TransactionForm({ payees, categories, creditors = [], assets = [
         <span className="text-sm text-slate-600">หมายเหตุ</span>
         <input className="input mt-1" value={note} onChange={(e) => setNote(e.target.value)} />
       </label>
+      {showSource && (
+        <IncomeSourceSelect
+          sources={incomeSources}
+          value={sourceId}
+          onChange={setSourceId}
+          onCreated={() => onIncomeSourcesChanged?.()}
+          required={makeRecurring && !initial?.recurring_id}
+        />
+      )}
       {savings && (
         <label className="block">
           <span className="text-sm text-slate-600">{type === 'expense' ? 'เก็บไว้ที่' : 'ถอนจาก'}</span>
