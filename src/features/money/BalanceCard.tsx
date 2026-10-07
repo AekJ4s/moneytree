@@ -19,7 +19,10 @@ export function BalanceCard({ refreshKey = 0 }: { refreshKey?: number }) {
   const [showDetail, setShowDetail] = useState(false);
 
   const o = overview.data;
-  const payables = debts.data ? buildPayables(summarizeAll(debts.data[0], today), debts.data[1]) : { items: [], total: 0 };
+  const payables = debts.data
+    ? buildPayables(summarizeAll(debts.data[0], today), debts.data[1])
+    : { items: [], thisMonth: 0, nextMonth: 0, totalOwed: 0 };
+  const dueItems = payables.items.filter((p) => p.dueThisMonth > 0);
   const receivable = (o?.receivables ?? []).reduce((s, r) => s + r.amount, 0);
 
   if (o && !o.configured) {
@@ -40,10 +43,10 @@ export function BalanceCard({ refreshKey = 0 }: { refreshKey?: number }) {
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         <Figure label="ยอดเงินจริง" value={o?.cash_balance} tone="text-slate-800" />
         <Figure label="+ รอรับ" value={receivable} tone="text-emerald-600" />
-        <Figure label="− รอจ่าย" value={payables.total} tone="text-rose-600" />
+        <Figure label="− รอจ่ายเดือนนี้" value={payables.thisMonth} tone="text-rose-600" />
         <Figure
           label="ยอดหลังรวมรอรับ/รอจ่าย"
-          value={o ? projectedBalance(o.cash_balance, receivable, payables.total) : undefined}
+          value={o ? projectedBalance(o.cash_balance, receivable, payables.thisMonth) : undefined}
           tone="font-bold text-emerald-700"
         />
       </div>
@@ -74,24 +77,28 @@ export function BalanceCard({ refreshKey = 0 }: { refreshKey?: number }) {
             </ul>
           </div>
           <div>
-            <h3 className="mb-1 text-sm font-semibold text-rose-600">รอจ่าย</h3>
-            {payables.items.length === 0 && <p className="text-xs text-slate-400">ไม่มี</p>}
+            <h3 className="mb-1 text-sm font-semibold text-rose-600">รอจ่ายเดือนนี้</h3>
+            {dueItems.length === 0 && <p className="text-xs text-slate-400">ไม่มี — จ่ายครบแล้ว</p>}
             <ul className="space-y-1 text-sm">
-              {payables.items.map((p) => (
+              {dueItems.map((p) => (
                 <li key={p.debtId} className="flex justify-between gap-2">
                   <span className="min-w-0 truncate">
                     {p.label}
                     {p.borrower && ` (👤 ${p.borrower})`}
                     {p.next && (
-                      <span className="block text-xs text-slate-500">
-                        ถัดไป {formatThaiDate(p.next.date, { day: 'numeric', month: 'short' })} · {formatMoney(p.next.amount)}
+                      <span className={`block text-xs ${p.overdue ? 'text-rose-600' : 'text-slate-500'}`}>
+                        {p.overdue ? 'เลยกำหนด ' : 'ครบกำหนด '}
+                        {formatThaiDate(p.next.date, { day: 'numeric', month: 'short' })}
                       </span>
                     )}
                   </span>
-                  <span className="shrink-0 tabular-nums">{formatMoney(p.owed)}</span>
+                  <span className="shrink-0 tabular-nums">{formatMoney(p.dueThisMonth)}</span>
                 </li>
               ))}
             </ul>
+            <p className="mt-2 text-xs text-slate-500">
+              เดือนหน้า {formatMoney(payables.nextMonth)} · หนี้คงเหลือทั้งหมด {formatMoney(payables.totalOwed)} (ไม่นำมาหัก)
+            </p>
           </div>
         </div>
       )}
