@@ -52,6 +52,8 @@ export interface RecurringItem {
   interval_unit: IntervalUnit;
   interval_count: number;
   next_due_date: string;
+  due_day: number | null;
+  due_last_day: boolean;
   active: boolean;
   note: string | null;
   created_at: string;
