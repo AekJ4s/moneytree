@@ -42,6 +42,7 @@ export function DebtForm({ creditorId, initial, hasPayments, knownBorrowers = []
   const [startDate, setStartDate] = useState(initial?.start_date ?? todayIso());
   const [firstDue, setFirstDue] = useState(initial?.first_due_date ?? addDays(todayIso(), 30));
   const [dueDay, setDueDay] = useState(initial?.due_day ? String(initial.due_day) : '');
+  const [statementDay, setStatementDay] = useState(initial?.statement_day ? String(initial.statement_day) : '');
   const [creditLimit, setCreditLimit] = useState(initial?.credit_limit != null ? String(initial.credit_limit) : '');
   const [minPercent, setMinPercent] = useState(initial?.min_payment_percent != null ? String(initial.min_payment_percent) : '');
   const [note, setNote] = useState(initial?.note ?? '');
@@ -98,6 +99,7 @@ export function DebtForm({ creditorId, initial, hasPayments, knownBorrowers = []
       start_date: startDate,
       first_due_date: scheduled ? firstDue : null,
       due_day: scheduled ? Number(firstDue.slice(8, 10)) : dueDay ? Number(dueDay) : null,
+      statement_day: !scheduled && statementDay ? Number(statementDay) : null,
       credit_limit: !scheduled && creditLimit ? num(creditLimit) : null,
       min_payment_percent: !scheduled && minPercent ? num(minPercent) : null,
       installment_amount: isFixed ? num(payment) : null,
@@ -284,10 +286,29 @@ export function DebtForm({ creditorId, initial, hasPayments, knownBorrowers = []
         </div>
 
         {!scheduled && (
-          <label className="block">
-            <span className="text-sm text-slate-600">ชำระขั้นต่ำ (% ของยอดคงค้าง)</span>
-            <input className="input mt-1" inputMode="decimal" value={minPercent} onChange={(e) => setMinPercent(e.target.value)} placeholder="เช่น 8" />
-          </label>
+          <div className="grid grid-cols-2 gap-2">
+            <label className="block">
+              <span className="text-sm text-slate-600">วันตัดรอบบัญชี</span>
+              <input
+                className="input mt-1"
+                type="number"
+                min={1}
+                max={31}
+                value={statementDay}
+                onChange={(e) => setStatementDay(e.target.value)}
+                placeholder="เช่น 30"
+              />
+            </label>
+            <label className="block">
+              <span className="text-sm text-slate-600">ชำระขั้นต่ำ (% ของยอด)</span>
+              <input className="input mt-1" inputMode="decimal" value={minPercent} onChange={(e) => setMinPercent(e.target.value)} placeholder="เช่น 8" />
+            </label>
+            {statementDay && (
+              <span className="col-span-2 text-xs text-slate-500">
+                รายการที่เกิดหลังวันที่ {statementDay} จะไปอยู่ในใบแจ้งยอดรอบถัดไป
+              </span>
+            )}
+          </div>
         )}
       </fieldset>
 

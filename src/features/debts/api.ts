@@ -177,3 +177,35 @@ export async function rolloverRevolving(input: {
     }),
   );
 }
+
+export interface PaymentCard {
+  id: string;
+  label: string;
+  statement_day: number | null;
+  due_day: number | null;
+}
+
+/** Open revolving debts (cards / credit lines) that an expense can be charged to. */
+export async function listPaymentCards(): Promise<PaymentCard[]> {
+  const rows = unwrap(
+    await supabase
+      .from('debts')
+      .select('id, name, borrower, statement_day, due_day, creditor:creditors(name)')
+      .eq('kind', 'revolving')
+      .is('closed_on', null)
+      .order('created_at'),
+  ) as unknown as {
+    id: string;
+    name: string;
+    borrower: string | null;
+    statement_day: number | null;
+    due_day: number | null;
+    creditor: { name: string } | null;
+  }[];
+  return rows.map((r) => ({
+    id: r.id,
+    label: `${r.creditor?.name ?? ''} · ${r.name}${r.borrower ? ` (${r.borrower})` : ''}`,
+    statement_day: r.statement_day,
+    due_day: r.due_day,
+  }));
+}

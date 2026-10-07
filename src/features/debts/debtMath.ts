@@ -1,4 +1,5 @@
 import { firstDueOnOrAfter, nextDueDate } from '../../lib/recurrence';
+import { cardCycle, type CardCycle } from './cardCycle';
 import type { Debt, DebtEntry, DebtInstallment, InterestMethod, InterestMode } from './types';
 
 function round2(n: number): number {
@@ -135,6 +136,8 @@ export interface DebtSummary {
   estimatedMonthlyInterest: number | null;
   minimumPayment: number | null;
   utilization: number | null;
+  /** Cards with a statement day: billed vs not-yet-billed balance. */
+  cycle: CardCycle | null;
 }
 
 function endOfMonth(iso: string): string {
@@ -167,11 +170,24 @@ export function summarizeDebt(
   if (debt.kind === 'revolving') {
     const balance = Math.max(0, revolvingBalance(debt, entries));
     const rate = monthlyRate(debt.interest_mode, debt.interest_rate);
-    const minimum = debt.min_payment_percent != null ? round2((balance * Number(debt.min_payment_percent)) / 100) : null;
-    const dueDate =
-      debt.due_day && balance > 0
+    const minPct = debt.min_payment_percent != null ? Number(debt.min_payment_percent) : null;
+    const toPay = (amount: number) => (minPct != null ? round2((amount * minPct) / 100) : amount);
+    const cycle = cardCycle(debt, entries, today);
+
+    // With a statement day, what is due is the last statement (or, if that is settled, the next one).
+    const statementAmount = cycle ? (cycle.billed > 0 ? cycle.billed : cycle.unbilled) : balance;
+    const minimum = minPct != null ? toPay(statementAmount) : null;
+    const dueDate = cycle
+      ? (cycle.billedDue ?? cycle.unbilledDue)
+      : debt.due_day && balance > 0
         ? firstDueOnOrAfter(today, { interval_unit: 'month', interval_count: 1, due_day: debt.due_day, due_last_day: false })
         : null;
+    const dueThisMonth = cycle
+      ? (cycle.billedDue && cycle.billedDue <= monthEnd ? toPay(cycle.billed) : 0) +
+        (cycle.unbilledDue && cycle.unbilledDue <= monthEnd ? toPay(cycle.unbilled) : 0)
+      : dueDate && dueDate <= monthEnd
+        ? toPay(balance)
+        : 0;
     const interestCharged = entries.filter((e) => e.kind === 'interest').reduce((s, e) => s + Number(e.amount), 0);
     return {
       outstanding: balance,
@@ -181,12 +197,13 @@ export function summarizeDebt(
       totalInterest: round2(interestCharged),
       paidCount: 0,
       totalCount: 0,
-      nextDue: dueDate ? { date: dueDate, amount: minimum ?? balance, installmentId: null } : null,
-      dueThisMonth: dueDate && dueDate <= monthEnd ? (minimum ?? balance) : 0,
-      overdueCount: 0,
+      nextDue: dueDate ? { date: dueDate, amount: minimum ?? statementAmount, installmentId: null } : null,
+      dueThisMonth: round2(dueThisMonth),
+      overdueCount: cycle?.billedDue && cycle.billedDue < today ? 1 : 0,
       estimatedMonthlyInterest: rate > 0 ? round2(balance * rate) : null,
       minimumPayment: minimum,
       utilization: debt.credit_limit ? balance / Number(debt.credit_limit) : null,
+      cycle,
     };
   }
 
@@ -217,6 +234,7 @@ export function summarizeDebt(
     estimatedMonthlyInterest: null,
     minimumPayment: null,
     utilization: null,
+    cycle: null,
   };
 }
 

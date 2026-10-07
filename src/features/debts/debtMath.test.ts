@@ -137,6 +137,7 @@ const baseDebt: Debt = {
   min_payment_percent: null,
   installment_amount: null,
   borrower: null,
+  statement_day: null,
   closed_on: null,
   note: null,
   created_at: '',

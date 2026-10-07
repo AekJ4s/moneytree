@@ -7,6 +7,7 @@ import { monthlyRate, paidInstallmentIds, summarizeDebt } from './debtMath';
 import { DebtForm } from './DebtForm';
 import { EntryForm } from './EntryForm';
 import { RolloverForm } from './RolloverForm';
+import { statementDateFor } from './cardCycle';
 import { planInstallmentEdit, type InstallmentEdit } from './scheduleEdits';
 import { ENTRY_LABEL, KIND_LABEL, type Debt, type DebtEntry, type DebtInstallment } from './types';
 
@@ -42,6 +43,16 @@ export function DebtCard({ debt, installments, entries, onChanged }: Props) {
   const paid = paidInstallmentIds(entries);
   const closed = !!debt.closed_on;
   const fixedPayment = !!debt.installment_amount;
+  // Interest and fees are my costs; paying a card/credit-line bill is not (what was bought was counted
+  // when it happened), while paying an installment is. A charge may be a purchase or a cash draw, so the
+  // user decides. Money used by someone else is never my expense.
+  const mine = !debt.borrower;
+  const expenseDefaults = {
+    payment: mine && debt.kind !== 'revolving',
+    charge: false,
+    interest: mine,
+    fee: mine,
+  };
 
   function editInstallment(id: string, edit: InstallmentEdit) {
     return run(() => updateInstallments(planInstallmentEdit(debt, installments, paid, id, edit)));
@@ -113,6 +124,18 @@ export function DebtCard({ debt, installments, entries, onChanged }: Props) {
                 <Fact label="ดอกเบี้ยประมาณ/เดือน" value={s.estimatedMonthlyInterest != null ? formatMoney(s.estimatedMonthlyInterest) : '—'} />
                 <Fact label="ขั้นต่ำ" value={s.minimumPayment != null ? formatMoney(s.minimumPayment) : '—'} />
                 <Fact label="ดอกเบี้ยที่จ่ายไปแล้ว" value={formatMoney(s.totalInterest)} />
+                {s.cycle && (
+                  <>
+                    <Fact
+                      label={`บิลรอบ ${shortDate(s.cycle.lastStatement)}${s.cycle.billedDue ? ` · จ่ายภายใน ${shortDate(s.cycle.billedDue)}` : ''}`}
+                      value={s.cycle.billed > 0 ? formatMoney(s.cycle.billed) : 'จ่ายครบแล้ว'}
+                    />
+                    <Fact
+                      label={`ยังไม่เข้าบิล → รอบ ${shortDate(s.cycle.nextStatement)}${s.cycle.unbilledDue ? ` · จ่าย ${shortDate(s.cycle.unbilledDue)}` : ''}`}
+                      value={formatMoney(s.cycle.unbilled)}
+                    />
+                  </>
+                )}
               </>
             ) : (
               <>
@@ -235,6 +258,9 @@ export function DebtCard({ debt, installments, entries, onChanged }: Props) {
                         <span className="flex-1 truncate">
                           {ENTRY_LABEL[e.kind]}
                           {e.note && <span className="text-slate-400"> · {e.note}</span>}
+                          {debt.statement_day && e.kind !== 'payment' && (
+                            <span className="text-xs text-sky-600"> → บิล {shortDate(statementDateFor(e.entry_date, debt.statement_day))}</span>
+                          )}
                         </span>
                         <span className={`tabular-nums ${e.kind === 'payment' ? 'text-emerald-600' : 'text-rose-600'}`}>
                           {e.kind === 'payment' ? '−' : '+'}
@@ -305,7 +331,7 @@ export function DebtCard({ debt, installments, entries, onChanged }: Props) {
               amount: Number(dialog.installment.principal) + Number(dialog.installment.interest),
             }}
             allowedKinds={['payment']}
-            defaultRecordExpense={!debt.borrower}
+            expenseDefaults={expenseDefaults}
             onSaved={() => {
               setDialog(null);
               onChanged();
@@ -331,7 +357,7 @@ export function DebtCard({ debt, installments, entries, onChanged }: Props) {
             debtId={debt.id}
             allowedKinds={debt.kind === 'revolving' ? ['payment', 'charge', 'interest', 'fee'] : ['fee', 'interest', 'payment']}
             defaultAmount={debt.kind === 'revolving' ? (s.minimumPayment ?? undefined) : undefined}
-            defaultRecordExpense={!debt.borrower}
+            expenseDefaults={expenseDefaults}
             onSaved={() => {
               setDialog(null);
               onChanged();
@@ -341,6 +367,10 @@ export function DebtCard({ debt, installments, entries, onChanged }: Props) {
       )}
     </div>
   );
+}
+
+function shortDate(iso: string): string {
+  return formatThaiDate(iso, { day: 'numeric', month: 'short' });
 }
 
 function Fact({ label, value }: { label: string; value: string }) {

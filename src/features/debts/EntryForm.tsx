@@ -5,25 +5,32 @@ import { errorMessage } from '../../lib/useAsync';
 import { addDebtEntry } from './api';
 import { ENTRY_LABEL, type DebtEntryKind } from './types';
 
+const EXPENSE_LABEL: Record<DebtEntryKind, string> = {
+  payment: 'บันทึกเป็นรายจ่าย (หมวด หนี้/ผ่อน) ด้วย',
+  charge: 'นับเป็นรายจ่าย — ติ๊กถ้าเป็นการรูดซื้อของ/บริการ (ไม่ต้องติ๊กถ้าเป็นการเบิกเงินสด)',
+  interest: 'นับดอกเบี้ยเป็นรายจ่าย',
+  fee: 'นับค่าธรรมเนียมเป็นรายจ่าย',
+};
+
 interface Props {
   debtId: string;
   /** Paying a specific installment fixes the kind to "payment". */
   installment?: { id: string; seq: number; amount: number };
   allowedKinds: DebtEntryKind[];
   defaultAmount?: number;
-  /** Book payments as my expense by default (off for money someone else uses). */
-  defaultRecordExpense?: boolean;
+  /** Whether each entry kind is booked as my expense by default (missing kinds: off). */
+  expenseDefaults?: Partial<Record<DebtEntryKind, boolean>>;
   onSaved: () => void;
 }
 
-export function EntryForm({ debtId, installment, allowedKinds, defaultAmount, defaultRecordExpense = true, onSaved }: Props) {
+export function EntryForm({ debtId, installment, allowedKinds, defaultAmount, expenseDefaults = {}, onSaved }: Props) {
   const [kind, setKind] = useState<DebtEntryKind>(allowedKinds[0]);
   const [amount, setAmount] = useState(
     installment ? installment.amount.toFixed(2) : defaultAmount ? defaultAmount.toFixed(2) : '',
   );
   const [date, setDate] = useState(todayIso());
   const [note, setNote] = useState('');
-  const [recordExpense, setRecordExpense] = useState(defaultRecordExpense);
+  const [recordExpense, setRecordExpense] = useState(expenseDefaults[allowedKinds[0]] ?? false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -41,7 +48,7 @@ export function EntryForm({ debtId, installment, allowedKinds, defaultAmount, de
         date,
         note: note.trim() || null,
         installmentId: installment?.id ?? null,
-        recordExpense: kind === 'payment' && recordExpense,
+        recordExpense,
       });
       onSaved();
     } catch (err) {
@@ -62,7 +69,10 @@ export function EntryForm({ debtId, installment, allowedKinds, defaultAmount, de
             <button
               key={k}
               type="button"
-              onClick={() => setKind(k)}
+              onClick={() => {
+                setKind(k);
+                setRecordExpense(expenseDefaults[k] ?? false);
+              }}
               className={`rounded-full px-3 py-1 text-sm ${kind === k ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600'}`}
             >
               {ENTRY_LABEL[k]}
@@ -81,12 +91,17 @@ export function EntryForm({ debtId, installment, allowedKinds, defaultAmount, de
         </label>
       </div>
       <input className="input" placeholder="หมายเหตุ" value={note} onChange={(e) => setNote(e.target.value)} />
-      {kind === 'payment' && (
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={recordExpense} onChange={(e) => setRecordExpense(e.target.checked)} />
-          บันทึกเป็นรายจ่าย (หมวด หนี้/ผ่อน) ด้วย
-        </label>
-      )}
+      <label className="flex items-start gap-2 text-sm">
+        <input className="mt-1" type="checkbox" checked={recordExpense} onChange={(e) => setRecordExpense(e.target.checked)} />
+        <span>
+          {EXPENSE_LABEL[kind]}
+          {kind === 'payment' && !installment && (
+            <span className="block text-xs text-slate-500">
+              จ่ายบิลบัตร: ปกติไม่ต้องติ๊ก ถ้ารายการที่รูดบัตรนับเป็นรายจ่ายไปแล้ว (จะได้ไม่นับซ้ำ)
+            </span>
+          )}
+        </span>
+      </label>
       <ErrorText>{error}</ErrorText>
       <button className="btn-primary w-full" disabled={busy}>
         {busy ? 'กำลังบันทึก…' : 'บันทึก'}

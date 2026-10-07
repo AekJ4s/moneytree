@@ -30,6 +30,8 @@ export interface Debt {
   installment_amount: number | null;
   /** Who actually uses this money (null = me), e.g. "แม่". */
   borrower: string | null;
+  /** Statement cut-off day (วันตัดรอบบัญชี) for cards / credit lines. */
+  statement_day: number | null;
   closed_on: string | null;
   note: string | null;
   created_at: string;
