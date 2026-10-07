@@ -75,7 +75,7 @@ export const KIND_LABEL: Record<DebtKind, string> = {
 
 export const ENTRY_LABEL: Record<DebtEntryKind, string> = {
   payment: 'ชำระ',
-  charge: 'ใช้จ่ายเพิ่ม',
+  charge: 'เบิก/ใช้วงเงิน',
   interest: 'ดอกเบี้ย',
   fee: 'ค่าธรรมเนียม',
 };

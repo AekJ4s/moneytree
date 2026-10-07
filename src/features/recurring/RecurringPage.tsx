@@ -12,7 +12,7 @@ import { createRecurring, deleteRecurring, listRecurring, updateRecurring } from
 import { DueRecurringList } from './DueRecurringList';
 import { listCreditors } from '../debts/api';
 import type { Creditor } from '../debts/types';
-import { dueDateForStatement, statementDateFor } from '../debts/cardCycle';
+import { CardBillingHint } from '../debts/CardBillingHint';
 
 export function RecurringPage() {
   const items = useAsync(listRecurring, []);
@@ -146,21 +146,6 @@ interface FormProps {
   categories: string[];
   cards: Creditor[];
   onSaved: () => void;
-}
-
-/** "💳 KTC → บิลรอบ 21 ต.ค. · จ่าย 20 พ.ย." for an expense charged to a card. */
-function CardBillingHint({ card, date }: { card?: Creditor; date: string }) {
-  if (!card) return null;
-  const statement = card.statement_day ? statementDateFor(date, card.statement_day) : null;
-  const due = statement && card.due_day ? dueDateForStatement(statement, card.due_day) : null;
-  const short = (iso: string) => formatThaiDate(iso, { day: 'numeric', month: 'short' });
-  return (
-    <div className="text-xs text-sky-700">
-      💳 {card.name}
-      {statement && ` → บิลรอบ ${short(statement)}`}
-      {due && ` · จ่าย ${short(due)}`}
-    </div>
-  );
 }
 
 function RecurringForm({ initial, payees, categories, cards, onSaved }: FormProps) {

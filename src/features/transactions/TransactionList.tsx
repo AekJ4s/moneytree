@@ -26,7 +26,7 @@ export function TransactionList({ transactions, slipUrls = {}, showDate, onEdit,
             showDate && formatThaiDate(t.txn_date),
             t.txn_time?.slice(0, 5),
             t.category,
-            t.account,
+            t.payment_method === 'card' ? `💳 ${t.account ?? 'บัตร'}` : t.account,
             SOURCE_LABEL[t.source],
             t.payee && t.note,
           ].filter(Boolean);

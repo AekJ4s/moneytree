@@ -54,7 +54,8 @@ export function RolloverForm({ debt, entries, onSaved }: Props) {
         date,
         interest: num(interest),
         redraw: num(redraw),
-        interestExpense: countInterest ? interestCost : 0,
+        // Someone else's interest is already in รอรับ (posted with the interest); only mine is booked here.
+        bookInterest: !debt.borrower && countInterest ? interestCost : 0,
       });
       onSaved();
     } catch (err) {
@@ -84,16 +85,25 @@ export function RolloverForm({ debt, entries, onSaved }: Props) {
         <span className="text-sm text-slate-600">เบิกใหม่</span>
         <input className="input mt-1" inputMode="decimal" value={redraw} onChange={(e) => setRedraw(e.target.value)} />
       </label>
-      <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" checked={countInterest} onChange={(e) => setCountInterest(e.target.checked)} />
-        นับดอกเบี้ย {formatMoney(interestCost)} เป็นรายจ่ายของฉัน (หมวด หนี้/ผ่อน)
-      </label>
+      {debt.borrower ? (
+        <p className="rounded-lg bg-violet-50 p-2 text-xs text-violet-800">
+          ดอกเบี้ยของก้อนนี้เป็นของ {debt.borrower} — ดอกเบี้ยที่บันทึกไว้แล้วอยู่ในรอรับแล้ว
+          {num(interest) > 0 && ` และดอกเบี้ยที่กรอกเพิ่ม ${formatMoney(num(interest))} จะเพิ่มในรอรับ`} · เงินที่เบิกใหม่จะนับว่าโอนให้{' '}
+          {debt.borrower} (รอรับเพิ่ม)
+        </p>
+      ) : (
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={countInterest} onChange={(e) => setCountInterest(e.target.checked)} />
+          นับดอกเบี้ย {formatMoney(interestCost)} เป็นรายจ่ายของฉัน (หมวด หนี้/ผ่อน)
+        </label>
+      )}
 
       <div className="space-y-1 rounded-lg bg-slate-50 p-3 text-sm">
         <Row label="จ่ายเต็มยอด" value={`−${formatMoney(payNow)}`} />
         <Row label="เบิกใหม่" value={`+${formatMoney(num(redraw))}`} />
         <Row label="ยอดคงเหลือหลังหมุน" value={formatMoney(num(redraw))} bold />
-        <Row label="รายจ่ายจริงของคุณ" value={formatMoney(countInterest ? interestCost : 0)} />
+        <Row label="รายจ่ายจริงของคุณ" value={formatMoney(countInterest && !debt.borrower ? interestCost : 0)} />
+        {debt.borrower && num(redraw) > 0 && <Row label={`โอนให้ ${debt.borrower} (รอรับ)`} value={`−${formatMoney(num(redraw))}`} />}
       </div>
 
       <ErrorText>{error}</ErrorText>

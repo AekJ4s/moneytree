@@ -178,7 +178,8 @@ export async function rolloverRevolving(input: {
   date: string;
   interest: number;
   redraw: number;
-  interestExpense: number;
+  /** Interest to book: my expense, or for someone else's portion, added to what they owe me. */
+  bookInterest: number;
 }): Promise<void> {
   check(
     await supabase.rpc('rollover_revolving', {
@@ -186,7 +187,7 @@ export async function rolloverRevolving(input: {
       p_date: input.date,
       p_interest: input.interest,
       p_redraw: input.redraw,
-      p_interest_expense: input.interestExpense,
+      p_book_interest: input.bookInterest,
     }),
   );
 }

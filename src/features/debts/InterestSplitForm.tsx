@@ -70,7 +70,8 @@ export function InterestSplitForm({ debts, entries, onSaved }: Props) {
             date,
             note: 'แบ่งจากดอกเบี้ยใบแจ้งยอด',
             installmentId: null,
-            recordExpense: false,
+            // Mine becomes an expense; someone else's portion is added to what they owe me.
+            recordExpense: true,
           });
         }
       }

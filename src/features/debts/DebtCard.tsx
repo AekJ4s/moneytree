@@ -50,8 +50,9 @@ export function DebtCard({ debt, installments, entries, onChanged }: Props) {
   const expenseDefaults = {
     payment: mine && debt.kind !== 'revolving',
     charge: false,
-    interest: mine,
-    fee: mine,
+    // Interest/fees: my expense, or for someone else's portion added to what they owe me.
+    interest: true,
+    fee: true,
   };
 
   function editInstallment(id: string, edit: InstallmentEdit) {
@@ -332,6 +333,7 @@ export function DebtCard({ debt, installments, entries, onChanged }: Props) {
             }}
             allowedKinds={['payment']}
             expenseDefaults={expenseDefaults}
+            borrower={debt.borrower}
             onSaved={() => {
               setDialog(null);
               onChanged();
@@ -358,6 +360,7 @@ export function DebtCard({ debt, installments, entries, onChanged }: Props) {
             allowedKinds={debt.kind === 'revolving' ? ['payment', 'charge', 'interest', 'fee'] : ['fee', 'interest', 'payment']}
             defaultAmount={debt.kind === 'revolving' ? (s.minimumPayment ?? undefined) : undefined}
             expenseDefaults={expenseDefaults}
+            borrower={debt.borrower}
             onSaved={() => {
               setDialog(null);
               onChanged();

@@ -9,6 +9,9 @@ import { listPayees } from '../payees/api';
 import { removeSlipImage, signSlipUrls } from '../slips/storage';
 import { deleteTransaction, listCategories, listTransactions } from './api';
 import { TransactionForm } from './TransactionForm';
+import { EntryHub } from '../money/EntryHub';
+import { listCashMovements } from '../money/api';
+import { listCreditors } from '../debts/api';
 import { sumByType, TransactionList } from './TransactionList';
 
 const WEEKDAYS = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'];
@@ -28,7 +31,8 @@ export function DailyPage() {
   const [actionError, setActionError] = useState<string | null>(null);
 
   const month = useAsync(() => listTransactions(from, to), [from, to]);
-  const lookups = useAsync(() => Promise.all([listPayees(), listCategories()]), []);
+  const lookups = useAsync(() => Promise.all([listPayees(), listCategories(), listCreditors()]), []);
+  const movements = useAsync(() => listCashMovements(from, to), [from, to]);
 
   const byDay = useMemo(() => {
     const map = new Map<string, Transaction[]>();
@@ -197,22 +201,55 @@ export function DailyPage() {
             onDelete={(t) => void onDelete(t)}
           />
         )}
+        {(() => {
+          const dayMoves = (movements.data ?? []).filter((m) => m.date === selected);
+          if (dayMoves.length === 0) return null;
+          return (
+            <div className="mt-3 border-t border-slate-100 pt-2">
+              <h3 className="text-xs font-semibold text-slate-500">เงินเข้า-ออกอื่น (ไม่ใช่รายรับ/รายจ่าย)</h3>
+              <ul className="text-sm">
+                {dayMoves.map((m) => (
+                  <li key={m.id} className="flex justify-between gap-2 py-1">
+                    <span className="truncate text-slate-600">{m.label}</span>
+                    <span className={`shrink-0 tabular-nums ${m.amount < 0 ? 'text-slate-700' : 'text-emerald-600'}`}>
+                      {m.amount < 0 ? '−' : '+'}
+                      {formatMoney(Math.abs(m.amount))}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          );
+        })()}
         <ErrorText>{actionError}</ErrorText>
       </section>
 
       {editing && (
-        <Modal title={editing === 'new' ? 'เพิ่มรายการ' : 'แก้ไขรายการ'} onClose={() => setEditing(null)}>
-          <TransactionForm
-            payees={lookups.data?.[0] ?? []}
-            categories={lookups.data?.[1] ?? []}
-            initial={editing === 'new' ? undefined : editing}
-            defaultDate={selected}
-            onSaved={() => {
-              setEditing(null);
-              month.reload();
-              lookups.reload();
-            }}
-          />
+        <Modal title={editing === 'new' ? 'บันทึกรายการ' : 'แก้ไขรายการ'} onClose={() => setEditing(null)}>
+          {editing === 'new' ? (
+            <EntryHub
+              defaultDate={selected}
+              onSaved={() => {
+                setEditing(null);
+                month.reload();
+                movements.reload();
+                lookups.reload();
+              }}
+            />
+          ) : (
+            <TransactionForm
+              payees={lookups.data?.[0] ?? []}
+              categories={lookups.data?.[1] ?? []}
+              creditors={lookups.data?.[2] ?? []}
+              initial={editing}
+              defaultDate={selected}
+              onSaved={() => {
+                setEditing(null);
+                month.reload();
+                lookups.reload();
+              }}
+            />
+          )}
         </Modal>
       )}
       {viewing && <ImageViewer src={viewing} onClose={() => setViewing(null)} />}

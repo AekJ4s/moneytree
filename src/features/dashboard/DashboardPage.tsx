@@ -4,19 +4,19 @@ import { ErrorText, Modal } from '../../components/Modal';
 import { Stat } from '../../components/Stat';
 import { formatMoney, monthRange, todayIso } from '../../lib/format';
 import { useAsync } from '../../lib/useAsync';
-import { listPayees } from '../payees/api';
 import { DueRecurringList } from '../recurring/DueRecurringList';
 import { signSlipUrls } from '../slips/storage';
-import { listCategories, listTransactions } from '../transactions/api';
-import { TransactionForm } from '../transactions/TransactionForm';
+import { listTransactions } from '../transactions/api';
+import { BalanceCard } from '../money/BalanceCard';
+import { EntryHub } from '../money/EntryHub';
 import { sumByType, TransactionList } from '../transactions/TransactionList';
 
 export function DashboardPage() {
   const now = new Date();
   const { from, to } = monthRange(now.getFullYear(), now.getMonth());
   const month = useAsync(() => listTransactions(from, to), [from, to]);
-  const lookups = useAsync(() => Promise.all([listPayees(), listCategories()]), []);
   const [adding, setAdding] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const txns = month.data ?? [];
   const totals = sumByType(txns);
@@ -47,13 +47,15 @@ export function DashboardPage() {
         </h1>
         <div className="flex gap-2">
           <button className="btn-secondary" onClick={() => setAdding(true)}>
-            + บันทึกเอง
+            + บันทึกรายการ
           </button>
           <Link to="/slips" className="btn-primary">
             🧾 อัปโหลดสลิป
           </Link>
         </div>
       </div>
+
+      <BalanceCard refreshKey={refreshKey} />
 
       <div className="grid grid-cols-3 gap-2">
         <Stat label="รายรับเดือนนี้" value={totals.income} tone="income" />
@@ -62,7 +64,12 @@ export function DashboardPage() {
       </div>
       <ErrorText>{month.error}</ErrorText>
 
-      <DueRecurringList onChanged={month.reload} />
+      <DueRecurringList
+        onChanged={() => {
+          month.reload();
+          setRefreshKey((k) => k + 1);
+        }}
+      />
 
       <div className="grid gap-4 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
         <section className="card">
@@ -98,14 +105,12 @@ export function DashboardPage() {
       </div>
 
       {adding && (
-        <Modal title="เพิ่มรายการ" onClose={() => setAdding(false)}>
-          <TransactionForm
-            payees={lookups.data?.[0] ?? []}
-            categories={lookups.data?.[1] ?? []}
+        <Modal title="บันทึกรายการ" onClose={() => setAdding(false)}>
+          <EntryHub
             onSaved={() => {
               setAdding(false);
               month.reload();
-              lookups.reload();
+              setRefreshKey((k) => k + 1);
             }}
           />
         </Modal>

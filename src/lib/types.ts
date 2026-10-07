@@ -1,6 +1,8 @@
 export type TxnType = 'income' | 'expense';
 export type TxnSource = 'manual' | 'slip' | 'recurring' | 'import';
 export type RuleMatchType = 'promptpay' | 'keyword';
+/** cash = from the account; card = charged to a creditor's card; debt = part of a debt payment. */
+export type PaymentMethod = 'cash' | 'card' | 'debt';
 export type IntervalUnit = 'week' | 'month' | 'year';
 
 export interface Payee {
@@ -36,6 +38,8 @@ export interface Transaction {
   qr_payload: string | null;
   account: string | null;
   import_key: string | null;
+  payment_method: PaymentMethod;
+  creditor_id: string | null;
   created_at: string;
   payee?: Pick<Payee, 'id' | 'name'> | null;
 }

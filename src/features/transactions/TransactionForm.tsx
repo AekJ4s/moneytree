@@ -2,20 +2,26 @@ import { useState, type FormEvent } from 'react';
 import { ErrorText } from '../../components/Modal';
 import { TypeToggle } from '../../components/TypeToggle';
 import { todayIso } from '../../lib/format';
+import { nextDueDate } from '../../lib/recurrence';
 import type { Payee, Transaction, TxnType } from '../../lib/types';
 import { errorMessage } from '../../lib/useAsync';
+import { CardBillingHint } from '../debts/CardBillingHint';
+import type { Creditor } from '../debts/types';
 import { ensurePayee } from '../payees/api';
+import { createRecurring } from '../recurring/api';
 import { createTransaction, updateTransaction } from './api';
 
 interface Props {
   payees: Payee[];
   categories: string[];
+  /** Cards / credit lines an expense can be charged to. */
+  creditors?: Creditor[];
   initial?: Transaction;
   defaultDate?: string;
   onSaved: () => void;
 }
 
-export function TransactionForm({ payees, categories, initial, defaultDate, onSaved }: Props) {
+export function TransactionForm({ payees, categories, creditors = [], initial, defaultDate, onSaved }: Props) {
   const [type, setType] = useState<TxnType>(initial?.type ?? 'expense');
   const [amount, setAmount] = useState(initial ? String(initial.amount) : '');
   const [date, setDate] = useState(initial?.txn_date ?? defaultDate ?? todayIso());
@@ -23,6 +29,9 @@ export function TransactionForm({ payees, categories, initial, defaultDate, onSa
   const [payeeName, setPayeeName] = useState(initial?.payee?.name ?? '');
   const [category, setCategory] = useState(initial?.category ?? '');
   const [note, setNote] = useState(initial?.note ?? '');
+  // '' = paid from the account; otherwise the creditor (card) it was charged to.
+  const [cardId, setCardId] = useState(initial?.payment_method === 'card' ? (initial.creditor_id ?? '') : '');
+  const [makeRecurring, setMakeRecurring] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -46,6 +55,9 @@ export function TransactionForm({ payees, categories, initial, defaultDate, onSa
     setError(null);
     try {
       const payee = payeeName.trim() ? await ensurePayee(payeeName, type, category.trim() || null) : null;
+      // Interest booked by a debt payment keeps its method; otherwise expenses are cash or card.
+      const keepDebt = initial?.payment_method === 'debt';
+      const card = type === 'expense' && !keepDebt && cardId ? creditors.find((c) => c.id === cardId) : undefined;
       const fields = {
         type,
         amount: value,
@@ -54,9 +66,35 @@ export function TransactionForm({ payees, categories, initial, defaultDate, onSa
         payee_id: payee?.id ?? null,
         category: category.trim() || null,
         note: note.trim() || null,
+        payment_method: keepDebt ? ('debt' as const) : card ? ('card' as const) : ('cash' as const),
+        creditor_id: keepDebt ? (initial?.creditor_id ?? null) : (card?.id ?? null),
+        account: keepDebt ? (initial?.account ?? null) : (card?.name ?? null),
       };
-      if (initial) await updateTransaction(initial.id, fields);
-      else await createTransaction({ ...fields, source: 'manual' });
+      if (initial) {
+        await updateTransaction(initial.id, fields);
+      } else {
+        let recurringId: string | null = null;
+        if (makeRecurring) {
+          const day = Number(date.slice(8, 10));
+          const rule = { interval_unit: 'month' as const, interval_count: 1, due_day: day, due_last_day: false };
+          recurringId = await createRecurring({
+            name: payee?.name ?? (note.trim() || category.trim() || (type === 'income' ? 'รายรับประจำ' : 'รายจ่ายประจำ')),
+            type,
+            amount: value,
+            category: fields.category,
+            payee_id: fields.payee_id,
+            interval_unit: 'month',
+            interval_count: 1,
+            due_day: day,
+            due_last_day: false,
+            next_due_date: nextDueDate(date, rule),
+            pay_creditor_id: card?.id ?? null,
+            note: null,
+            active: true,
+          });
+        }
+        await createTransaction({ ...fields, source: 'manual', recurring_id: recurringId });
+      }
       onSaved();
     } catch (err) {
       setError(errorMessage(err));
@@ -116,6 +154,31 @@ export function TransactionForm({ payees, categories, initial, defaultDate, onSa
         <span className="text-sm text-slate-600">หมายเหตุ</span>
         <input className="input mt-1" value={note} onChange={(e) => setNote(e.target.value)} />
       </label>
+      {type === 'expense' && initial?.payment_method !== 'debt' && (
+        <label className="block">
+          <span className="text-sm text-slate-600">จ่ายผ่าน</span>
+          <select className="input mt-1" value={cardId} onChange={(e) => setCardId(e.target.value)}>
+            <option value="">บัญชี / เงินสด (เงินออกทันที)</option>
+            {creditors.map((c) => (
+              <option key={c.id} value={c.id}>
+                💳 {c.name}
+              </option>
+            ))}
+          </select>
+          {cardId && (
+            <span className="mt-1 block text-xs text-slate-500">
+              นับเป็นรายจ่ายวันนี้ แต่เงินในบัญชียังไม่ลด — ยอดนี้ไปอยู่ใน “รอจ่าย” ของบัตรจนกว่าจะจ่ายบิล
+            </span>
+          )}
+          <CardBillingHint card={creditors.find((c) => c.id === cardId)} date={date} />
+        </label>
+      )}
+      {!initial && (
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={makeRecurring} onChange={(e) => setMakeRecurring(e.target.checked)} />
+          ทำเป็น{type === 'income' ? 'รายรับ' : 'รายจ่าย'}ประจำทุกเดือน (วันที่ {Number(date.slice(8, 10)) || '–'})
+        </label>
+      )}
       <PayeeCategoryOptions payees={payees} categories={categories} />
       <ErrorText>{error}</ErrorText>
       <button className="btn-primary w-full" disabled={busy}>

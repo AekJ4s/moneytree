@@ -18,8 +18,9 @@ export async function listDueRecurring(onOrBefore: string): Promise<RecurringIte
   );
 }
 
-export async function createRecurring(input: RecurringInput): Promise<void> {
-  check(await supabase.from('recurring_items').insert(input));
+export async function createRecurring(input: RecurringInput): Promise<string> {
+  const row = unwrap(await supabase.from('recurring_items').insert(input).select('id').single()) as { id: string };
+  return row.id;
 }
 
 export async function updateRecurring(id: string, patch: Partial<RecurringInput>): Promise<void> {
