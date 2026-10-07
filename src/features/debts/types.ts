@@ -28,6 +28,8 @@ export interface Debt {
   min_payment_percent: number | null;
   /** Fixed payment per installment (bank-style); principal = payment - interest. */
   installment_amount: number | null;
+  /** Who actually uses this money (null = me), e.g. "แม่". */
+  borrower: string | null;
   closed_on: string | null;
   note: string | null;
   created_at: string;

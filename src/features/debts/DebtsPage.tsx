@@ -6,7 +6,7 @@ import { useAsync } from '../../lib/useAsync';
 import { listCreditors, loadDebtData } from './api';
 import { CreditorForm } from './CreditorForm';
 import { CreditorLogo, useLogoUrls } from './CreditorLogo';
-import { summarizeAll } from './debtMath';
+import { outstandingByBorrower, summarizeAll } from './debtMath';
 import type { Creditor } from './types';
 
 export function DebtsPage() {
@@ -19,6 +19,7 @@ export function DebtsPage() {
 
   const open = data.data ? summarizeAll(data.data, today) : [];
   const total = open.reduce((s, d) => s + d.summary.outstanding, 0);
+  const byBorrower = outstandingByBorrower(open);
   const dueThisMonth = open.reduce((s, d) => s + d.summary.dueThisMonth, 0);
   const remainingInterest = open.reduce((s, d) => s + d.summary.remainingInterest, 0);
   const upcoming = open
@@ -51,6 +52,12 @@ export function DebtsPage() {
         <Stat label="ต้องจ่ายเดือนนี้" value={dueThisMonth} tone="text-amber-600" />
         <Stat label="ดอกเบี้ยที่เหลือ (ผ่อน)" value={remainingInterest} tone="text-slate-700" />
       </div>
+      {byBorrower.others.length > 0 && (
+        <p className="-mt-2 text-xs text-slate-500">
+          ในยอดหนี้รวม เป็นของฉัน {formatMoney(byBorrower.mine)}
+          {byBorrower.others.map((o) => ` · 👤 ${o.name} ใช้ ${formatMoney(o.amount)}`).join('')}
+        </p>
+      )}
       <ErrorText>{creditors.error ?? data.error}</ErrorText>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

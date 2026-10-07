@@ -19,6 +19,7 @@ const debt: Debt = {
   credit_limit: null,
   min_payment_percent: null,
   installment_amount: 523.73,
+  borrower: null,
   closed_on: null,
   note: null,
   created_at: '',

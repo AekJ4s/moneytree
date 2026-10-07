@@ -240,3 +240,85 @@ export function summarizeAll(
       ),
     }));
 }
+
+function daysBetween(fromIso: string, toIso: string): number {
+  const [fy, fm, fd] = fromIso.split('-').map(Number);
+  const [ty, tm, td] = toIso.split('-').map(Number);
+  return Math.max(0, Math.round((Date.UTC(ty, tm - 1, td) - Date.UTC(fy, fm - 1, fd)) / 86_400_000));
+}
+
+/** Simple daily interest, as banks charge on revolving credit: balance × rate × days / 365. */
+export function interestByDays(balance: number, annualPercent: number, fromIso: string, toIso: string): number {
+  return round2((Math.max(0, balance) * (annualPercent / 100) * daysBetween(fromIso, toIso)) / 365);
+}
+
+export interface InterestSplitTarget {
+  id: string;
+  balance: number;
+  /** null = the owner's own portion. */
+  borrower: string | null;
+  annualPercent: number;
+  /** Interest accrues from here (start date, or the date of the last interest entry). */
+  accruesFrom: string;
+}
+
+/** Splits `total` proportionally to the weights; the last share absorbs rounding. */
+function proportional(total: number, ids: string[], weights: number[]): Record<string, number> {
+  const sum = weights.reduce((s, w) => s + Math.max(0, w), 0);
+  const out: Record<string, number> = {};
+  let given = 0;
+  ids.forEach((id, i) => {
+    const share = i === ids.length - 1 ? round2(total - given) : sum > 0 ? round2((total * Math.max(0, weights[i])) / sum) : 0;
+    out[id] = share;
+    given = round2(given + share);
+  });
+  return out;
+}
+
+/**
+ * Splits one statement's interest between portions of a shared credit line.
+ * - 'balance': proportional to current balances.
+ * - 'days': other people's portions are charged daily interest since they accrued
+ *   (e.g. Mom's 60,000 drawn on the 19th), and the owner's portion takes the remainder.
+ */
+export function splitInterest(
+  total: number,
+  targets: InterestSplitTarget[],
+  method: 'balance' | 'days',
+  statementDate: string,
+): Record<string, number> {
+  if (targets.length === 0) return {};
+  if (method === 'balance') return proportional(total, targets.map((t) => t.id), targets.map((t) => t.balance));
+
+  const others = targets.filter((t) => t.borrower);
+  const own = targets.filter((t) => !t.borrower);
+  // With no owner portion, the last other portion takes the remainder instead.
+  const charged = own.length > 0 ? others : others.slice(0, -1);
+  const remainderTargets = own.length > 0 ? own : others.slice(-1);
+
+  const out: Record<string, number> = {};
+  let used = 0;
+  for (const t of charged) {
+    const share = Math.min(round2(total - used), interestByDays(t.balance, t.annualPercent, t.accruesFrom, statementDate));
+    out[t.id] = Math.max(0, share);
+    used = round2(used + out[t.id]);
+  }
+  return {
+    ...out,
+    ...proportional(round2(total - used), remainderTargets.map((t) => t.id), remainderTargets.map((t) => t.balance)),
+  };
+}
+
+/** Outstanding totals split into my own debt and amounts used by other people (by name). */
+export function outstandingByBorrower(open: DebtWithSummary[]): { mine: number; others: { name: string; amount: number }[] } {
+  let mine = 0;
+  const others = new Map<string, number>();
+  for (const { debt, summary } of open) {
+    if (debt.borrower) others.set(debt.borrower, (others.get(debt.borrower) ?? 0) + summary.outstanding);
+    else mine += summary.outstanding;
+  }
+  return {
+    mine: round2(mine),
+    others: Array.from(others, ([name, amount]) => ({ name, amount: round2(amount) })),
+  };
+}

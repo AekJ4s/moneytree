@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { buildSchedule, monthlyRate, rebalanceFixedPayment, summarizeDebt } from './debtMath';
+import {
+  buildSchedule,
+  interestByDays,
+  monthlyRate,
+  rebalanceFixedPayment,
+  splitInterest,
+  summarizeDebt,
+  type InterestSplitTarget,
+} from './debtMath';
 import type { Debt, DebtEntry, DebtInstallment } from './types';
 
 describe('monthlyRate', () => {
@@ -127,6 +135,7 @@ const baseDebt: Debt = {
   credit_limit: null,
   min_payment_percent: null,
   installment_amount: null,
+  borrower: null,
   closed_on: null,
   note: null,
   created_at: '',
@@ -190,5 +199,28 @@ describe('summarizeDebt', () => {
       dueThisMonth: 1600,
       totalInterest: 300,
     });
+  });
+});
+
+describe('splitInterest (LINE BK statement 30/09/2026, interest 1,399.53)', () => {
+  const targets: InterestSplitTarget[] = [
+    { id: 'me', balance: 11183.22, borrower: null, annualPercent: 24, accruesFrom: '2026-08-31' },
+    { id: 'mom', balance: 60000, borrower: 'แม่', annualPercent: 24, accruesFrom: '2026-09-19' },
+  ];
+
+  it('by days: Mom pays 11 days on 60,000, the owner takes the rest', () => {
+    expect(interestByDays(60000, 24, '2026-09-19', '2026-09-30')).toBe(433.97);
+    expect(splitInterest(1399.53, targets, 'days', '2026-09-30')).toEqual({ mom: 433.97, me: 965.56 });
+  });
+
+  it('by balance: proportional, shares add up exactly', () => {
+    const split = splitInterest(1399.53, targets, 'balance', '2026-09-30');
+    expect(split.me).toBe(219.87);
+    expect(split.me + split.mom).toBeCloseTo(1399.53, 2);
+  });
+
+  it('never charges others more than the statement total', () => {
+    const split = splitInterest(100, targets, 'days', '2026-09-30');
+    expect(split).toEqual({ mom: 100, me: 0 });
   });
 });

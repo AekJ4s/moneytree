@@ -7,8 +7,9 @@ import { deleteCreditor, getCreditor, listCreditors, loadDebtData } from './api'
 import { CreditorForm } from './CreditorForm';
 import { CreditorLogo, useLogoUrls } from './CreditorLogo';
 import { DebtCard } from './DebtCard';
-import { summarizeAll } from './debtMath';
+import { outstandingByBorrower, summarizeAll } from './debtMath';
 import { DebtForm } from './DebtForm';
+import { InterestSplitForm } from './InterestSplitForm';
 import { KIND_LABEL, type DebtKind } from './types';
 
 const KIND_ORDER: DebtKind[] = ['revolving', 'installment', 'paylater'];
@@ -20,7 +21,7 @@ export function CreditorPage() {
   const allCreditors = useAsync(listCreditors, []);
   const data = useAsync(() => loadDebtData(creditorId), [creditorId]);
   const logos = useLogoUrls(creditor.data ? [creditor.data] : []);
-  const [dialog, setDialog] = useState<'debt' | 'creditor' | null>(null);
+  const [dialog, setDialog] = useState<'debt' | 'creditor' | 'split' | null>(null);
   const [showClosed, setShowClosed] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,6 +31,9 @@ export function CreditorPage() {
   const outstanding = open.reduce((s, d) => s + d.summary.outstanding, 0);
   const dueThisMonth = open.reduce((s, d) => s + d.summary.dueThisMonth, 0);
   const closedCount = debts.filter((d) => d.closed_on).length;
+  const byBorrower = outstandingByBorrower(open);
+  const openRevolving = debts.filter((d) => d.kind === 'revolving' && !d.closed_on);
+  const knownBorrowers = Array.from(new Set(debts.map((d) => d.borrower).filter((b): b is string => !!b)));
 
   async function onDelete() {
     if (!c) return;
@@ -59,6 +63,12 @@ export function CreditorPage() {
             <span className="mx-2 text-slate-300">|</span>
             <span className="text-amber-600">เดือนนี้ {formatMoney(dueThisMonth)}</span>
           </p>
+          {byBorrower.others.length > 0 && (
+            <p className="text-xs text-slate-500">
+              ของฉัน {formatMoney(byBorrower.mine)}
+              {byBorrower.others.map((o) => ` · 👤 ${o.name} ${formatMoney(o.amount)}`).join('')}
+            </p>
+          )}
         </div>
         <div className="flex gap-2">
           <button className="btn-secondary" onClick={() => setDialog('creditor')}>
@@ -83,7 +93,14 @@ export function CreditorPage() {
         if (list.length === 0) return null;
         return (
           <section key={kind} className="space-y-2">
-            <h2 className="text-sm font-semibold text-slate-600">{KIND_LABEL[kind]}</h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-slate-600">{KIND_LABEL[kind]}</h2>
+              {kind === 'revolving' && openRevolving.length > 1 && (
+                <button className="btn-secondary px-2 py-1 text-xs" onClick={() => setDialog('split')}>
+                  แบ่งดอกเบี้ยตามใบแจ้งยอด
+                </button>
+              )}
+            </div>
             {list.map((debt) => (
               <DebtCard
                 key={debt.id}
@@ -108,6 +125,19 @@ export function CreditorPage() {
           <DebtForm
             creditorId={c.id}
             hasPayments={false}
+            knownBorrowers={knownBorrowers}
+            onSaved={() => {
+              setDialog(null);
+              data.reload();
+            }}
+          />
+        </Modal>
+      )}
+      {dialog === 'split' && (
+        <Modal title="แบ่งดอกเบี้ยเงินหมุน" onClose={() => setDialog(null)}>
+          <InterestSplitForm
+            debts={openRevolving}
+            entries={data.data?.entries ?? []}
             onSaved={() => {
               setDialog(null);
               data.reload();

@@ -70,6 +70,7 @@ export function DebtCard({ debt, installments, entries, onChanged }: Props) {
             <div className="flex flex-wrap items-center gap-2">
               <span className="font-medium">{debt.name}</span>
               <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">{KIND_LABEL[debt.kind]}</span>
+              {debt.borrower && <span className="rounded-full bg-violet-100 px-2 py-0.5 text-xs text-violet-700">👤 {debt.borrower}</span>}
               {closed && <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-700">ปิดแล้ว</span>}
               {s.overdueCount > 0 && !closed && (
                 <span className="rounded-full bg-rose-100 px-2 py-0.5 text-xs text-rose-700">เลยกำหนด {s.overdueCount} งวด</span>
@@ -297,6 +298,7 @@ export function DebtCard({ debt, installments, entries, onChanged }: Props) {
               amount: Number(dialog.installment.principal) + Number(dialog.installment.interest),
             }}
             allowedKinds={['payment']}
+            defaultRecordExpense={!debt.borrower}
             onSaved={() => {
               setDialog(null);
               onChanged();
@@ -310,6 +312,7 @@ export function DebtCard({ debt, installments, entries, onChanged }: Props) {
             debtId={debt.id}
             allowedKinds={debt.kind === 'revolving' ? ['payment', 'charge', 'interest', 'fee'] : ['fee', 'interest', 'payment']}
             defaultAmount={debt.kind === 'revolving' ? (s.minimumPayment ?? undefined) : undefined}
+            defaultRecordExpense={!debt.borrower}
             onSaved={() => {
               setDialog(null);
               onChanged();

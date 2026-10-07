@@ -11,6 +11,8 @@ interface Props {
   initial?: Debt;
   /** Installments already paid; once any are paid the schedule can't be regenerated. */
   hasPayments: boolean;
+  /** Borrower names already used, for autocomplete. */
+  knownBorrowers?: string[];
   onSaved: () => void;
 }
 
@@ -25,7 +27,7 @@ function num(value: string): number {
   return Number(value.replace(/,/g, ''));
 }
 
-export function DebtForm({ creditorId, initial, hasPayments, onSaved }: Props) {
+export function DebtForm({ creditorId, initial, hasPayments, knownBorrowers = [], onSaved }: Props) {
   const [kind, setKind] = useState<DebtKind>(initial?.kind ?? 'installment');
   const [name, setName] = useState(initial?.name ?? '');
   const [principal, setPrincipal] = useState(initial ? String(initial.principal) : '');
@@ -43,6 +45,7 @@ export function DebtForm({ creditorId, initial, hasPayments, onSaved }: Props) {
   const [creditLimit, setCreditLimit] = useState(initial?.credit_limit != null ? String(initial.credit_limit) : '');
   const [minPercent, setMinPercent] = useState(initial?.min_payment_percent != null ? String(initial.min_payment_percent) : '');
   const [note, setNote] = useState(initial?.note ?? '');
+  const [borrower, setBorrower] = useState(initial?.borrower ?? '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -100,6 +103,7 @@ export function DebtForm({ creditorId, initial, hasPayments, onSaved }: Props) {
       installment_amount: isFixed ? num(payment) : null,
       closed_on: initial?.closed_on ?? null,
       note: note.trim() || null,
+      borrower: borrower.trim() || null,
     };
 
     setBusy(true);
@@ -109,7 +113,7 @@ export function DebtForm({ creditorId, initial, hasPayments, onSaved }: Props) {
         await createDebt(input, schedule);
       } else if (scheduleLocked) {
         // Schedule fields are frozen once payments exist; only descriptive fields change.
-        await updateDebt(initial.id, { name: input.name, note: input.note, start_date: input.start_date });
+        await updateDebt(initial.id, { name: input.name, note: input.note, start_date: input.start_date, borrower: input.borrower });
       } else {
         await updateDebt(initial.id, input);
         await replaceSchedule(initial.id, scheduled ? schedule : []);
@@ -150,6 +154,27 @@ export function DebtForm({ creditorId, initial, hasPayments, onSaved }: Props) {
           placeholder={kind === 'revolving' ? 'เช่น บัตรหลัก, เงินหมุน' : 'เช่น ผ่อนมือถือ, ซื้อรองเท้า'}
           required
         />
+      </label>
+
+      <label className="block">
+        <span className="text-sm text-slate-600">ผู้ใช้เงินก้อนนี้</span>
+        <input
+          className="input mt-1"
+          list="borrower-options"
+          value={borrower}
+          onChange={(e) => setBorrower(e.target.value)}
+          placeholder="ตัวฉันเอง (เว้นว่างได้) หรือ เช่น แม่"
+        />
+        <datalist id="borrower-options">
+          {Array.from(new Set(['แม่', ...knownBorrowers])).map((b) => (
+            <option key={b} value={b} />
+          ))}
+        </datalist>
+        {borrower.trim() && (
+          <span className="mt-1 block text-xs text-slate-500">
+            ยอดนี้จะแสดงแยกเป็นของ “{borrower.trim()}” และการชำระจะไม่ถูกนับเป็นรายจ่ายของคุณโดยอัตโนมัติ
+          </span>
+        )}
       </label>
 
       {scheduleLocked && (

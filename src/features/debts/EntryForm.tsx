@@ -11,17 +11,19 @@ interface Props {
   installment?: { id: string; seq: number; amount: number };
   allowedKinds: DebtEntryKind[];
   defaultAmount?: number;
+  /** Book payments as my expense by default (off for money someone else uses). */
+  defaultRecordExpense?: boolean;
   onSaved: () => void;
 }
 
-export function EntryForm({ debtId, installment, allowedKinds, defaultAmount, onSaved }: Props) {
+export function EntryForm({ debtId, installment, allowedKinds, defaultAmount, defaultRecordExpense = true, onSaved }: Props) {
   const [kind, setKind] = useState<DebtEntryKind>(allowedKinds[0]);
   const [amount, setAmount] = useState(
     installment ? installment.amount.toFixed(2) : defaultAmount ? defaultAmount.toFixed(2) : '',
   );
   const [date, setDate] = useState(todayIso());
   const [note, setNote] = useState('');
-  const [recordExpense, setRecordExpense] = useState(true);
+  const [recordExpense, setRecordExpense] = useState(defaultRecordExpense);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
