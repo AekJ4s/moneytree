@@ -5,6 +5,7 @@ import {
   monthlyRate,
   rebalanceFixedPayment,
   splitInterest,
+  unpaidInterest,
   summarizeDebt,
   type InterestSplitTarget,
 } from './debtMath';
@@ -234,5 +235,31 @@ describe('splitInterest with an interest-free portion (actual LINE BK 30/09/2026
   it('gives all interest to the interest-bearing portion', () => {
     expect(splitInterest(1399.53, targets, 'days', '2026-09-30')).toEqual({ me: 0, mom: 1399.53 });
     expect(splitInterest(1399.53, targets, 'balance', '2026-09-30')).toEqual({ me: 0, mom: 1399.53 });
+  });
+});
+
+describe('unpaidInterest', () => {
+  const at = (kind: DebtEntry['kind'], amount: number, entry_date: string, created_at = ''): DebtEntry => ({
+    id: Math.random().toString(),
+    debt_id: 'd1',
+    installment_id: null,
+    kind,
+    amount,
+    entry_date,
+    note: null,
+    transaction_id: null,
+    created_at,
+  });
+
+  it('counts interest after the last payment only', () => {
+    expect(
+      unpaidInterest([
+        at('interest', 1399.53, '2026-09-30'),
+        at('payment', 61399.53, '2026-10-20', 'a'),
+        at('charge', 60000, '2026-10-20', 'b'),
+        at('interest', 1250, '2026-10-31'),
+      ]),
+    ).toBe(1250);
+    expect(unpaidInterest([at('interest', 1399.53, '2026-09-30')])).toBe(1399.53);
   });
 });

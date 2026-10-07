@@ -158,3 +158,22 @@ export async function addDebtEntry(e: EntryInput): Promise<void> {
 export async function deleteDebtEntry(id: string): Promise<void> {
   check(await supabase.rpc('delete_debt_entry', { p_entry_id: id }));
 }
+
+/** Pays a revolving balance in full and draws it again in one atomic step (see rollover_revolving). */
+export async function rolloverRevolving(input: {
+  debtId: string;
+  date: string;
+  interest: number;
+  redraw: number;
+  interestExpense: number;
+}): Promise<void> {
+  check(
+    await supabase.rpc('rollover_revolving', {
+      p_debt_id: input.debtId,
+      p_date: input.date,
+      p_interest: input.interest,
+      p_redraw: input.redraw,
+      p_interest_expense: input.interestExpense,
+    }),
+  );
+}

@@ -327,3 +327,15 @@ export function outstandingByBorrower(open: DebtWithSummary[]): { mine: number; 
     others: Array.from(others, ([name, amount]) => ({ name, amount: round2(amount) })),
   };
 }
+
+/** Interest posted since the last payment (what the next full payment includes as interest). */
+export function unpaidInterest(entries: DebtEntry[]): number {
+  const order = (e: DebtEntry) => `${e.entry_date}|${e.created_at}`;
+  const sorted = [...entries].sort((a, b) => order(a).localeCompare(order(b)));
+  let interest = 0;
+  for (const e of sorted) {
+    if (e.kind === 'payment') interest = 0;
+    else if (e.kind === 'interest') interest += Number(e.amount);
+  }
+  return round2(interest);
+}

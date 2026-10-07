@@ -6,6 +6,7 @@ import { deleteDebt, deleteDebtEntry, updateDebt, updateInstallments } from './a
 import { monthlyRate, paidInstallmentIds, summarizeDebt } from './debtMath';
 import { DebtForm } from './DebtForm';
 import { EntryForm } from './EntryForm';
+import { RolloverForm } from './RolloverForm';
 import { planInstallmentEdit, type InstallmentEdit } from './scheduleEdits';
 import { ENTRY_LABEL, KIND_LABEL, type Debt, type DebtEntry, type DebtInstallment } from './types';
 
@@ -19,7 +20,8 @@ interface Props {
 type Dialog =
   | { type: 'edit' }
   | { type: 'pay'; installment: DebtInstallment }
-  | { type: 'entry' };
+  | { type: 'entry' }
+  | { type: 'rollover' };
 
 function describeInterest(debt: Debt): string {
   if (debt.interest_mode === 'none') return 'ไม่มีดอกเบี้ย';
@@ -211,9 +213,14 @@ export function DebtCard({ debt, installments, entries, onChanged }: Props) {
               <div className="mb-1 flex items-center justify-between">
                 <h4 className="text-sm font-medium">รายการเคลื่อนไหว</h4>
                 {!closed && debt.kind === 'revolving' && (
-                  <button className="btn-secondary px-2 py-1 text-xs" onClick={() => setDialog({ type: 'entry' })}>
-                    + บันทึก
-                  </button>
+                  <div className="flex gap-1">
+                    <button className="btn-secondary px-2 py-1 text-xs" onClick={() => setDialog({ type: 'rollover' })}>
+                      🔁 หมุนรอบ
+                    </button>
+                    <button className="btn-secondary px-2 py-1 text-xs" onClick={() => setDialog({ type: 'entry' })}>
+                      + บันทึก
+                    </button>
+                  </div>
                 )}
               </div>
               {entries.filter((e) => !e.installment_id).length === 0 ? (
@@ -299,6 +306,18 @@ export function DebtCard({ debt, installments, entries, onChanged }: Props) {
             }}
             allowedKinds={['payment']}
             defaultRecordExpense={!debt.borrower}
+            onSaved={() => {
+              setDialog(null);
+              onChanged();
+            }}
+          />
+        </Modal>
+      )}
+      {dialog?.type === 'rollover' && (
+        <Modal title={`หมุนรอบ ${debt.name}${debt.borrower ? ` (${debt.borrower})` : ''}`} onClose={() => setDialog(null)}>
+          <RolloverForm
+            debt={debt}
+            entries={entries}
             onSaved={() => {
               setDialog(null);
               onChanged();
