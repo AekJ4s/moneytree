@@ -263,3 +263,12 @@ describe('unpaidInterest', () => {
     expect(unpaidInterest([at('interest', 1399.53, '2026-09-30')])).toBe(1399.53);
   });
 });
+
+describe('revolving principal vs billed interest (LINE BK app figures)', () => {
+  it('remaining principal excludes interest that is billed but not yet paid', () => {
+    const mom: Debt = { ...baseDebt, kind: 'revolving', principal: 60000, interest_mode: 'annual', interest_rate: 24, borrower: 'แม่' };
+    const s = summarizeDebt(mom, [], [entry('interest', 1399.53)], '2026-10-07');
+    expect(s.outstanding).toBe(61399.53);
+    expect(s.remainingPrincipal).toBe(60000);
+  });
+});

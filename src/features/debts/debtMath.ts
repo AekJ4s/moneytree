@@ -121,6 +121,7 @@ export function buildSchedule(input: ScheduleInput): ScheduleRow[] {
 export interface DebtSummary {
   /** Everything still owed, including scheduled interest. */
   outstanding: number;
+  /** Principal still owed — the figure banking apps show. */
   remainingPrincipal: number;
   remainingInterest: number;
   totalInterest: number;
@@ -174,7 +175,8 @@ export function summarizeDebt(
     const interestCharged = entries.filter((e) => e.kind === 'interest').reduce((s, e) => s + Number(e.amount), 0);
     return {
       outstanding: balance,
-      remainingPrincipal: balance,
+      // Banks show the principal only; billed-but-unpaid interest is part of the statement amount.
+      remainingPrincipal: Math.max(0, round2(balance - unpaidInterest(entries))),
       remainingInterest: 0,
       totalInterest: round2(interestCharged),
       paidCount: 0,
@@ -314,13 +316,13 @@ export function splitInterest(
   };
 }
 
-/** Outstanding totals split into my own debt and amounts used by other people (by name). */
+/** Principal still owed, split into my own debt and amounts used by other people (by name). */
 export function outstandingByBorrower(open: DebtWithSummary[]): { mine: number; others: { name: string; amount: number }[] } {
   let mine = 0;
   const others = new Map<string, number>();
   for (const { debt, summary } of open) {
-    if (debt.borrower) others.set(debt.borrower, (others.get(debt.borrower) ?? 0) + summary.outstanding);
-    else mine += summary.outstanding;
+    if (debt.borrower) others.set(debt.borrower, (others.get(debt.borrower) ?? 0) + summary.remainingPrincipal);
+    else mine += summary.remainingPrincipal;
   }
   return {
     mine: round2(mine),

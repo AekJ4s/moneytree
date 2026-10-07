@@ -85,7 +85,7 @@ export function DebtCard({ debt, installments, entries, onChanged }: Props) {
             </div>
           </div>
           <div className="text-right">
-            <div className="font-semibold tabular-nums text-rose-600">{formatMoney(s.outstanding)}</div>
+            <div className="font-semibold tabular-nums text-rose-600" title="เงินต้นคงเหลือ">{formatMoney(s.remainingPrincipal)}</div>
             {s.nextDue && !closed && (
               <div className="text-xs text-slate-500">
                 {debt.kind === 'revolving' && s.minimumPayment != null ? 'ขั้นต่ำ ' : 'งวดถัดไป '}
@@ -107,7 +107,7 @@ export function DebtCard({ debt, installments, entries, onChanged }: Props) {
       {open && (
         <div className="space-y-3 border-t border-slate-100 p-3">
           <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
-            <Fact label="เงินต้นคงเหลือ" value={formatMoney(s.remainingPrincipal)} />
+            <Fact label="ยอดที่ต้องจ่ายทั้งหมด" value={formatMoney(s.outstanding)} />
             {debt.kind === 'revolving' ? (
               <>
                 <Fact label="ดอกเบี้ยประมาณ/เดือน" value={s.estimatedMonthlyInterest != null ? formatMoney(s.estimatedMonthlyInterest) : '—'} />

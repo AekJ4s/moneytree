@@ -29,6 +29,10 @@ export function CreditorPage() {
   const debts = data.data?.debts ?? [];
   const open = data.data ? summarizeAll(data.data, todayIso()) : [];
   const outstanding = open.reduce((s, d) => s + d.summary.outstanding, 0);
+  const principalOf = (kinds: DebtKind[]) =>
+    open.filter((d) => kinds.includes(d.debt.kind)).reduce((s, d) => s + d.summary.remainingPrincipal, 0);
+  const revolvingPrincipal = principalOf(['revolving']);
+  const installmentPrincipal = principalOf(['installment', 'paylater']);
   const dueThisMonth = open.reduce((s, d) => s + d.summary.dueThisMonth, 0);
   const closedCount = debts.filter((d) => d.closed_on).length;
   const byBorrower = outstandingByBorrower(open);
@@ -59,9 +63,16 @@ export function CreditorPage() {
         <div className="min-w-0 flex-1">
           <h1 className="text-xl font-semibold">{c.name}</h1>
           <p className="text-sm">
-            <span className="text-rose-600">คงเหลือ {formatMoney(outstanding)}</span>
+            <span className="font-semibold text-rose-600">เงินต้นคงเหลือ {formatMoney(revolvingPrincipal + installmentPrincipal)}</span>
             <span className="mx-2 text-slate-300">|</span>
             <span className="text-amber-600">เดือนนี้ {formatMoney(dueThisMonth)}</span>
+          </p>
+          <p className="text-xs text-slate-500">
+            {revolvingPrincipal > 0 && `เงินหมุน ${formatMoney(revolvingPrincipal)}`}
+            {revolvingPrincipal > 0 && installmentPrincipal > 0 && ' · '}
+            {installmentPrincipal > 0 && `ผ่อนชำระ ${formatMoney(installmentPrincipal)}`}
+            {outstanding > revolvingPrincipal + installmentPrincipal &&
+              ` · รวมดอกเบี้ยที่ต้องจ่าย ${formatMoney(outstanding)}`}
           </p>
           {byBorrower.others.length > 0 && (
             <p className="text-xs text-slate-500">

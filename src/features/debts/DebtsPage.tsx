@@ -18,7 +18,7 @@ export function DebtsPage() {
   const today = todayIso();
 
   const open = data.data ? summarizeAll(data.data, today) : [];
-  const total = open.reduce((s, d) => s + d.summary.outstanding, 0);
+  const total = open.reduce((s, d) => s + d.summary.remainingPrincipal, 0);
   const byBorrower = outstandingByBorrower(open);
   const dueThisMonth = open.reduce((s, d) => s + d.summary.dueThisMonth, 0);
   const remainingInterest = open.reduce((s, d) => s + d.summary.remainingInterest, 0);
@@ -32,7 +32,7 @@ export function DebtsPage() {
     const mine = open.filter((d) => d.debt.creditor_id === c.id);
     return {
       count: mine.length,
-      outstanding: mine.reduce((s, d) => s + d.summary.outstanding, 0),
+      outstanding: mine.reduce((s, d) => s + d.summary.remainingPrincipal, 0),
       dueThisMonth: mine.reduce((s, d) => s + d.summary.dueThisMonth, 0),
       overdue: mine.reduce((s, d) => s + d.summary.overdueCount, 0),
     };
@@ -48,13 +48,13 @@ export function DebtsPage() {
       </div>
 
       <div className="grid grid-cols-3 gap-2">
-        <Stat label="ยอดหนี้คงเหลือ" value={total} tone="text-rose-600" />
+        <Stat label="เงินต้นคงเหลือ" value={total} tone="text-rose-600" />
         <Stat label="ต้องจ่ายเดือนนี้" value={dueThisMonth} tone="text-amber-600" />
         <Stat label="ดอกเบี้ยที่เหลือ (ผ่อน)" value={remainingInterest} tone="text-slate-700" />
       </div>
       {byBorrower.others.length > 0 && (
         <p className="-mt-2 text-xs text-slate-500">
-          ในยอดหนี้รวม เป็นของฉัน {formatMoney(byBorrower.mine)}
+          ในเงินต้นคงเหลือ เป็นของฉัน {formatMoney(byBorrower.mine)}
           {byBorrower.others.map((o) => ` · 👤 ${o.name} ใช้ ${formatMoney(o.amount)}`).join('')}
         </p>
       )}
