@@ -1,9 +1,12 @@
+import imageCompression from 'browser-image-compression';
 import { SAVINGS_CATEGORIES } from '../../lib/savings';
 import { check, supabase, unwrap, unwrapMaybe } from '../../lib/supabase';
 import type { AssetFlow } from './assetMath';
+import { CREDITOR_LOGO_BUCKET } from '../debts/api';
 import type { Asset, AssetValuation } from './types';
 
-export type AssetInput = Pick<Asset, 'name' | 'kind' | 'icon' | 'target_amount' | 'note'>;
+export type AssetInput = Pick<Asset, 'name' | 'kind' | 'icon' | 'target_amount' | 'note'> &
+  Partial<Pick<Asset, 'opening_amount' | 'opening_date'>>;
 
 export async function listAssets(): Promise<Asset[]> {
   return unwrap(await supabase.from('assets').select('*').eq('archived', false).order('sort_order').order('created_at'));
@@ -64,5 +67,29 @@ export async function saveSavingsGoal(goal: number | null): Promise<void> {
     await supabase
       .from('user_settings')
       .upsert({ savings_goal: goal, updated_at: new Date().toISOString() }, { onConflict: 'user_id' }),
+  );
+}
+
+/** Compresses an asset picture and stores it privately; returns the storage path to keep in `icon`. */
+export async function uploadAssetImage(userId: string, file: File): Promise<string> {
+  const compressed = await imageCompression(file, { maxSizeMB: 0.1, maxWidthOrHeight: 256, fileType: 'image/webp', useWebWorker: true });
+  const path = `${userId}/assets/${crypto.randomUUID()}.webp`;
+  check(await supabase.storage.from(CREDITOR_LOGO_BUCKET).upload(path, compressed, { contentType: 'image/webp' }));
+  return path;
+}
+
+/**
+ * Moves savings between places (null = the main wallet of unassigned savings) via move_savings(),
+ * which records a withdrawal and a deposit atomically — cash-neutral and outside income/expense.
+ */
+export async function moveSavings(input: { from: Asset | null; to: Asset; amount: number; date: string; note?: string | null }): Promise<void> {
+  check(
+    await supabase.rpc('move_savings', {
+      p_from: input.from?.id ?? null,
+      p_to: input.to.id,
+      p_amount: input.amount,
+      p_date: input.date,
+      p_note: input.note ?? null,
+    }),
   );
 }

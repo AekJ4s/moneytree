@@ -7,6 +7,9 @@ export interface Asset {
   /** Emoji or image path. */
   icon: string | null;
   target_amount: number | null;
+  /** Money already held here before tracking started; counts as principal, not as a cash movement. */
+  opening_amount: number;
+  opening_date: string | null;
   note: string | null;
   sort_order: number;
   archived: boolean;

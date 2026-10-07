@@ -202,7 +202,8 @@ export function TransactionForm({
             <option value="">ไม่ระบุ</option>
             {assets.map((a) => (
               <option key={a.id} value={a.id}>
-                {a.icon} {a.name}
+                {a.icon && !a.icon.includes('/') ? `${a.icon} ` : ''}
+                {a.name}
               </option>
             ))}
           </select>

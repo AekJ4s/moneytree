@@ -3,7 +3,7 @@ import { savingsTotals, summarizeAsset, treeStage, type AssetFlow } from './asse
 import type { Asset } from './types';
 
 const dime: Asset = {
-  id: 'dime', name: 'Dime', kind: 'investment', icon: '📈', target_amount: 10000, note: null, sort_order: 0, archived: false, created_at: '',
+  id: 'dime', name: 'Dime', kind: 'investment', icon: '📈', target_amount: 10000, opening_amount: 0, opening_date: null, note: null, sort_order: 0, archived: false, created_at: '',
 };
 
 const flows: AssetFlow[] = [
@@ -24,6 +24,19 @@ describe('summarizeAsset', () => {
     ]);
     // 1,100 on 10/10, then +2,000 and −500.
     expect(s).toMatchObject({ invested: 2500, value: 2600, gain: 100, lastValuedOn: '2026-10-10' });
+  });
+});
+
+describe('opening amount', () => {
+  it('counts money already held as principal, not as gain', () => {
+    const s = summarizeAsset({ ...dime, opening_amount: 50000, opening_date: '2026-09-30' }, flows, []);
+    expect(s).toMatchObject({ invested: 52500, value: 52500, gain: 0 });
+  });
+  it('a later valuation shows the gain on top of it', () => {
+    const s = summarizeAsset({ ...dime, opening_amount: 50000, opening_date: '2026-09-30' }, flows, [
+      { id: 'v', asset_id: 'dime', value: 54000, valued_on: '2026-10-25', note: null, created_at: '' },
+    ]);
+    expect(s).toMatchObject({ invested: 52500, value: 54000, gain: 1500 });
   });
 });
 

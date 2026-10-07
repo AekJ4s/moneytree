@@ -27,7 +27,8 @@ const signed = (f: AssetFlow) => (f.type === 'expense' ? 1 : -1) * Number(f.amou
 
 export function summarizeAsset(asset: Asset, flows: AssetFlow[], valuations: AssetValuation[]): AssetSummary {
   const mine = flows.filter((f) => f.asset_id === asset.id);
-  const invested = round2(mine.reduce((s, f) => s + signed(f), 0));
+  const opening = Number(asset.opening_amount ?? 0);
+  const invested = round2(mine.reduce((s, f) => s + signed(f), opening));
   const latest = valuations
     .filter((v) => v.asset_id === asset.id)
     .sort((a, b) => `${b.valued_on}${b.created_at}`.localeCompare(`${a.valued_on}${a.created_at}`))[0];

@@ -1,19 +1,43 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type ChangeEvent, type DragEvent, type FormEvent } from 'react';
 import { ErrorText, Modal } from '../../components/Modal';
 import { formatMoney, formatThaiDate, todayIso } from '../../lib/format';
 import { errorMessage, useAsync } from '../../lib/useAsync';
-import { addValuation, createAsset, deleteAsset, deleteValuation, listAssets, listSavingsFlows, listValuations, updateAsset } from './api';
+import { useUserId } from '../auth/AuthProvider';
+import {
+  addValuation,
+  createAsset,
+  deleteAsset,
+  deleteValuation,
+  listAssets,
+  listSavingsFlows,
+  listValuations,
+  moveSavings,
+  updateAsset,
+  uploadAssetImage,
+} from './api';
+import { AssetIcon, isImageIcon, useAssetImages } from './AssetIcon';
 import { savingsTotals, summarizeAsset, type AssetSummary } from './assetMath';
 import { SavingsForm } from './SavingsForm';
 import { TreeCard } from './TreeCard';
 import { ASSET_KINDS, ASSET_PRESETS, type Asset, type AssetKind } from './types';
 
+/** Drag payload: which place the money is being moved from (null = main wallet). */
+const DRAG_TYPE = 'application/x-moneytree-savings';
+
+type Dialog =
+  | { type: 'new' }
+  | { type: 'save' }
+  | { type: 'detail'; id: string }
+  | { type: 'move'; fromId: string | null; toId: string | null };
+
 export function AssetsPage() {
   const data = useAsync(() => Promise.all([listAssets(), listSavingsFlows(), listValuations()]), []);
-  const [dialog, setDialog] = useState<{ type: 'new' } | { type: 'save' } | { type: 'detail'; id: string } | null>(null);
+  const [dialog, setDialog] = useState<Dialog | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [dropTarget, setDropTarget] = useState<string | null>(null);
 
   const [assets, flows, valuations] = data.data ?? [[], [], []];
+  const images = useAssetImages(assets);
   const summaries = assets.map((a) => summarizeAsset(a, flows, valuations));
   const totals = savingsTotals(summaries, flows);
   const detail = dialog?.type === 'detail' ? summaries.find((s) => s.asset.id === dialog.id) : undefined;
@@ -21,6 +45,20 @@ export function AssetsPage() {
   function reload() {
     data.reload();
     setRefreshKey((k) => k + 1);
+  }
+
+  function startDrag(e: DragEvent, fromId: string | null) {
+    e.dataTransfer.setData(DRAG_TYPE, fromId ?? 'wallet');
+    e.dataTransfer.effectAllowed = 'move';
+  }
+
+  function dropOn(e: DragEvent, toId: string) {
+    e.preventDefault();
+    setDropTarget(null);
+    const raw = e.dataTransfer.getData(DRAG_TYPE);
+    if (!raw) return;
+    const fromId = raw === 'wallet' ? null : raw;
+    if (fromId !== toId) setDialog({ type: 'move', fromId, toId });
   }
 
   return (
@@ -40,26 +78,59 @@ export function AssetsPage() {
       <TreeCard refreshKey={refreshKey} />
       <ErrorText>{data.error}</ErrorText>
 
+      {/* Main wallet: savings not yet placed anywhere. Drag it onto a place below. */}
+      {totals.unassigned > 0 && (
+        <div
+          draggable
+          onDragStart={(e) => startDrag(e, null)}
+          className="card flex cursor-grab items-center gap-3 border-2 border-dashed border-amber-300 bg-amber-50/60 active:cursor-grabbing"
+        >
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-2xl">👛</div>
+          <div className="min-w-0 flex-1">
+            <div className="font-semibold">กระเป๋าหลัก (ยังไม่ระบุที่เก็บ)</div>
+            <div className="text-xs text-slate-500">ลากไปวางบนที่เก็บด้านล่าง หรือกดปุ่ม “ย้ายเข้าที่เก็บ”</div>
+          </div>
+          <div className="text-right">
+            <div className="font-semibold tabular-nums text-amber-600">{formatMoney(totals.unassigned)}</div>
+            <button
+              className="mt-1 text-xs text-amber-700 hover:underline"
+              onClick={() => setDialog({ type: 'move', fromId: null, toId: null })}
+              disabled={assets.length === 0}
+            >
+              ย้ายเข้าที่เก็บ →
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="grid gap-3 sm:grid-cols-2">
         {summaries.map((s) => (
-          <button key={s.asset.id} className="card text-left transition hover:ring-amber-400" onClick={() => setDialog({ type: 'detail', id: s.asset.id })}>
-            <AssetRow summary={s} />
+          <button
+            key={s.asset.id}
+            draggable
+            onDragStart={(e) => startDrag(e, s.asset.id)}
+            onDragOver={(e) => {
+              if (!e.dataTransfer.types.includes(DRAG_TYPE)) return;
+              e.preventDefault();
+              setDropTarget(s.asset.id);
+            }}
+            onDragLeave={() => setDropTarget((t) => (t === s.asset.id ? null : t))}
+            onDrop={(e) => dropOn(e, s.asset.id)}
+            className={`card text-left transition hover:ring-amber-400 ${dropTarget === s.asset.id ? 'scale-[1.02] bg-amber-50 ring-2 ring-amber-500' : ''}`}
+            onClick={() => setDialog({ type: 'detail', id: s.asset.id })}
+          >
+            <AssetRow summary={s} images={images} />
           </button>
         ))}
-        {totals.unassigned !== 0 && (
-          <div className="card text-sm text-slate-600">
-            🪙 ออม/ลงทุนที่ยังไม่ระบุที่เก็บ <b className="tabular-nums text-amber-600">{formatMoney(totals.unassigned)}</b>
-            <p className="text-xs text-slate-400">แก้รายการในหน้ารายวันแล้วเลือก “เก็บไว้ที่” เพื่อย้ายเข้าที่เก็บ</p>
-          </div>
-        )}
         {!data.loading && summaries.length === 0 && (
           <p className="py-6 text-center text-sm text-slate-400 sm:col-span-2">ยังไม่มีที่เก็บเงิน — เพิ่ม เช่น Dime, ทองคำ, เงินสด</p>
         )}
       </div>
+      {summaries.length > 1 && <p className="text-xs text-slate-400">ลากการ์ดที่เก็บหนึ่งไปวางบนอีกที่ เพื่อย้ายเงินระหว่างกันได้</p>}
 
       {dialog?.type === 'new' && (
         <Modal title="เพิ่มที่เก็บเงิน" onClose={() => setDialog(null)}>
-          <AssetForm existing={assets} onSaved={() => { setDialog(null); reload(); }} />
+          <AssetForm existing={assets} images={images} onSaved={() => { setDialog(null); reload(); }} />
         </Modal>
       )}
       {dialog?.type === 'save' && (
@@ -67,13 +138,27 @@ export function AssetsPage() {
           <SavingsForm onSaved={() => { setDialog(null); reload(); }} />
         </Modal>
       )}
+      {dialog?.type === 'move' && (
+        <Modal title="ย้ายเงินเก็บ" onClose={() => setDialog(null)}>
+          <MoveForm
+            assets={assets}
+            summaries={summaries}
+            walletAmount={totals.unassigned}
+            initialFrom={dialog.fromId}
+            initialTo={dialog.toId}
+            onSaved={() => { setDialog(null); reload(); }}
+          />
+        </Modal>
+      )}
       {detail && (
         <Modal title={detail.asset.name} onClose={() => setDialog(null)}>
           <AssetDetail
             summary={detail}
             existing={assets}
+            images={images}
             flows={flows.filter((f) => f.asset_id === detail.asset.id)}
             valuations={valuations.filter((v) => v.asset_id === detail.asset.id)}
+            onMove={() => setDialog({ type: 'move', fromId: detail.asset.id, toId: null })}
             onChanged={reload}
             onDeleted={() => { setDialog(null); reload(); }}
           />
@@ -83,10 +168,10 @@ export function AssetsPage() {
   );
 }
 
-function AssetRow({ summary: s }: { summary: AssetSummary }) {
+function AssetRow({ summary: s, images }: { summary: AssetSummary; images: Record<string, string> }) {
   return (
     <div className="flex items-start gap-3">
-      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-2xl">{s.asset.icon ?? ASSET_KINDS[s.asset.kind].icon}</div>
+      <AssetIcon asset={s.asset} images={images} />
       <div className="min-w-0 flex-1">
         <div className="flex justify-between gap-2">
           <span className="truncate font-semibold">{s.asset.name}</span>
@@ -109,27 +194,156 @@ function AssetRow({ summary: s }: { summary: AssetSummary }) {
   );
 }
 
-function AssetForm({ initial, existing, onSaved }: { initial?: Asset; existing: Asset[]; onSaved: () => void }) {
-  const [name, setName] = useState(initial?.name ?? '');
-  const [kind, setKind] = useState<AssetKind>(initial?.kind ?? 'investment');
-  const [icon, setIcon] = useState(initial?.icon ?? '');
-  const [target, setTarget] = useState(initial?.target_amount ? String(initial.target_amount) : '');
+interface MoveFormProps {
+  assets: Asset[];
+  summaries: AssetSummary[];
+  walletAmount: number;
+  initialFrom: string | null;
+  initialTo: string | null;
+  onSaved: () => void;
+}
+
+function MoveForm({ assets, summaries, walletAmount, initialFrom, initialTo, onSaved }: MoveFormProps) {
+  const [fromId, setFromId] = useState(initialFrom ?? 'wallet');
+  const [toId, setToId] = useState(initialTo ?? '');
+  const available = fromId === 'wallet' ? walletAmount : (summaries.find((s) => s.asset.id === fromId)?.value ?? 0);
+  const [amount, setAmount] = useState(available > 0 ? available.toFixed(2) : '');
+  const [date, setDate] = useState(todayIso());
+  const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setAmount(available > 0 ? available.toFixed(2) : '');
+  }, [fromId, available]);
+
+  async function onSubmit(e: FormEvent) {
+    e.preventDefault();
+    const value = Number(amount.replace(/,/g, ''));
+    const to = assets.find((a) => a.id === toId);
+    const from = fromId === 'wallet' ? null : (assets.find((a) => a.id === fromId) ?? null);
+    if (!to) return setError('เลือกที่เก็บปลายทาง');
+    if (from?.id === to.id) return setError('ต้นทางและปลายทางต้องต่างกัน');
+    if (!(value > 0)) return setError('จำนวนเงินต้องมากกว่า 0');
+    setBusy(true);
+    setError(null);
+    try {
+      await moveSavings({ from, to, amount: value, date, note });
+      onSaved();
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form onSubmit={onSubmit} className="space-y-3">
+      <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-2">
+        <label className="block">
+          <span className="text-sm text-slate-600">จาก</span>
+          <select className="input mt-1" value={fromId} onChange={(e) => setFromId(e.target.value)}>
+            <option value="wallet">👛 กระเป๋าหลัก</option>
+            {assets.map((a) => (
+              <option key={a.id} value={a.id}>
+                {isImageIcon(a.icon) ? '' : `${a.icon ?? ASSET_KINDS[a.kind].icon} `}
+                {a.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <span className="pb-2 text-lg">→</span>
+        <label className="block">
+          <span className="text-sm text-slate-600">ไป</span>
+          <select className="input mt-1" value={toId} onChange={(e) => setToId(e.target.value)} required>
+            <option value="">เลือกที่เก็บ</option>
+            {assets
+              .filter((a) => a.id !== fromId)
+              .map((a) => (
+                <option key={a.id} value={a.id}>
+                  {isImageIcon(a.icon) ? '' : `${a.icon ?? ASSET_KINDS[a.kind].icon} `}
+                  {a.name}
+                </option>
+              ))}
+          </select>
+        </label>
+      </div>
+      <p className="text-xs text-slate-500">มีอยู่ {formatMoney(available)}</p>
+      <div className="grid grid-cols-2 gap-2">
+        <label className="block">
+          <span className="text-sm text-slate-600">จำนวนเงิน</span>
+          <input className="input mt-1 text-lg" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} required />
+        </label>
+        <label className="block">
+          <span className="text-sm text-slate-600">วันที่</span>
+          <input className="input mt-1" type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
+        </label>
+      </div>
+      <input className="input" placeholder="หมายเหตุ" value={note} onChange={(e) => setNote(e.target.value)} />
+      <p className="text-xs text-slate-500">ย้ายเงินระหว่างที่เก็บ — ไม่กระทบเงินในบัญชีและไม่นับเป็นรายรับ/รายจ่าย</p>
+      <ErrorText>{error}</ErrorText>
+      <button className="btn-primary w-full bg-amber-500 hover:bg-amber-600" disabled={busy}>
+        {busy ? 'กำลังย้าย…' : 'ย้ายเงิน'}
+      </button>
+    </form>
+  );
+}
+
+function AssetForm({
+  initial,
+  existing,
+  images,
+  onSaved,
+}: {
+  initial?: Asset;
+  existing: Asset[];
+  images: Record<string, string>;
+  onSaved: () => void;
+}) {
+  const userId = useUserId();
+  const [name, setName] = useState(initial?.name ?? '');
+  const [kind, setKind] = useState<AssetKind>(initial?.kind ?? 'investment');
+  const [icon, setIcon] = useState(isImageIcon(initial?.icon) ? '' : (initial?.icon ?? ''));
+  const [image, setImage] = useState<string | null>(isImageIcon(initial?.icon) ? initial!.icon : null);
+  const [file, setFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [target, setTarget] = useState(initial?.target_amount ? String(initial.target_amount) : '');
+  const [opening, setOpening] = useState(initial?.opening_amount ? String(initial.opening_amount) : '');
+  const [openingDate, setOpeningDate] = useState(initial?.opening_date ?? todayIso());
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    setPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+
+  function onFile(e: ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    e.target.value = '';
+    if (f) setFile(f);
+  }
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     if (!name.trim()) return setError('ใส่ชื่อ');
     if (existing.some((a) => a.name === name.trim() && a.id !== initial?.id)) return setError('มีชื่อนี้แล้ว');
-    const input = {
-      name: name.trim(),
-      kind,
-      icon: icon.trim() || ASSET_KINDS[kind].icon,
-      target_amount: target.trim() ? Number(target.replace(/,/g, '')) : null,
-      note: null,
-    };
+    const openingAmount = opening.trim() ? Number(opening.replace(/,/g, '')) : 0;
+    if (!(openingAmount >= 0)) return setError('ยอดเงินที่มีอยู่ไม่ถูกต้อง');
     setBusy(true);
     try {
+      const storedImage = file ? await uploadAssetImage(userId, file) : image;
+      const input = {
+        name: name.trim(),
+        kind,
+        icon: storedImage ?? (icon.trim() || ASSET_KINDS[kind].icon),
+        target_amount: target.trim() ? Number(target.replace(/,/g, '')) : null,
+        opening_amount: openingAmount,
+        opening_date: openingAmount > 0 ? openingDate : null,
+        note: null,
+      };
       if (initial) await updateAsset(initial.id, input);
       else await createAsset(input);
       onSaved();
@@ -139,6 +353,8 @@ function AssetForm({ initial, existing, onSaved }: { initial?: Asset; existing: 
       setBusy(false);
     }
   }
+
+  const shownImage = preview ?? (image ? (image.startsWith('/') ? image : images[image]) : null);
 
   return (
     <form onSubmit={onSubmit} className="space-y-3">
@@ -160,16 +376,45 @@ function AssetForm({ initial, existing, onSaved }: { initial?: Asset; existing: 
           ))}
         </div>
       )}
-      <div className="grid grid-cols-[4rem_1fr] gap-2">
-        <label className="block">
-          <span className="text-sm text-slate-600">ไอคอน</span>
-          <input className="input mt-1 text-center text-xl" value={icon} onChange={(e) => setIcon(e.target.value)} placeholder={ASSET_KINDS[kind].icon} maxLength={4} />
-        </label>
-        <label className="block">
-          <span className="text-sm text-slate-600">ชื่อ</span>
-          <input className="input mt-1" value={name} onChange={(e) => setName(e.target.value)} placeholder="เช่น Dime, ทองคำ" required />
-        </label>
+
+      <div className="flex items-start gap-3">
+        <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-amber-50 text-3xl">
+          {shownImage ? <img src={shownImage} alt="" className="h-full w-full object-cover" /> : icon || ASSET_KINDS[kind].icon}
+        </div>
+        <div className="flex-1 space-y-2">
+          <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="ชื่อ เช่น Dime, ทองคำ" required />
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="btn-secondary cursor-pointer px-2 py-1 text-xs">
+              🖼️ ใช้รูปภาพ
+              <input type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={onFile} />
+            </label>
+            {(file || image) && (
+              <button
+                type="button"
+                className="btn-danger px-2 py-1 text-xs"
+                onClick={() => {
+                  setFile(null);
+                  setPreview(null);
+                  setImage(null);
+                }}
+              >
+                ใช้ไอคอนแทน
+              </button>
+            )}
+            {!file && !image && (
+              <input
+                className="input w-20 py-1 text-center text-lg"
+                value={icon}
+                onChange={(e) => setIcon(e.target.value)}
+                placeholder={ASSET_KINDS[kind].icon}
+                maxLength={4}
+                aria-label="ไอคอน (อีโมจิ)"
+              />
+            )}
+          </div>
+        </div>
       </div>
+
       <label className="block">
         <span className="text-sm text-slate-600">ประเภท</span>
         <select className="input mt-1" value={kind} onChange={(e) => setKind(e.target.value as AssetKind)}>
@@ -180,13 +425,30 @@ function AssetForm({ initial, existing, onSaved }: { initial?: Asset; existing: 
           ))}
         </select>
       </label>
+
+      <div className="rounded-lg bg-amber-50 p-3">
+        <div className="grid grid-cols-2 gap-2">
+          <label className="block">
+            <span className="text-sm text-slate-700">เงินที่มีอยู่แล้วตอนนี้</span>
+            <input className="input mt-1" inputMode="decimal" value={opening} onChange={(e) => setOpening(e.target.value)} placeholder="เช่น 50000" />
+          </label>
+          <label className="block">
+            <span className="text-sm text-slate-700">ณ วันที่</span>
+            <input className="input mt-1" type="date" value={openingDate} onChange={(e) => setOpeningDate(e.target.value)} />
+          </label>
+        </div>
+        <p className="mt-1 text-xs text-slate-600">
+          เงินที่อยู่ในที่เก็บนี้ก่อนเริ่มบันทึก — นับเป็นเงินต้น ไม่หักจากเงินในบัญชี และไม่นับเป็นกำไร
+        </p>
+      </div>
+
       <label className="block">
         <span className="text-sm text-slate-600">เป้าหมายของที่เก็บนี้ (ไม่บังคับ)</span>
-        <input className="input mt-1" inputMode="decimal" value={target} onChange={(e) => setTarget(e.target.value)} placeholder="เช่น 50000" />
+        <input className="input mt-1" inputMode="decimal" value={target} onChange={(e) => setTarget(e.target.value)} placeholder="เช่น 100000" />
       </label>
       <ErrorText>{error}</ErrorText>
       <button className="btn-primary w-full" disabled={busy}>
-        บันทึก
+        {busy ? 'กำลังบันทึก…' : 'บันทึก'}
       </button>
     </form>
   );
@@ -195,13 +457,15 @@ function AssetForm({ initial, existing, onSaved }: { initial?: Asset; existing: 
 interface DetailProps {
   summary: AssetSummary;
   existing: Asset[];
+  images: Record<string, string>;
   flows: { id: string; type: 'income' | 'expense'; amount: number; txn_date: string; note: string | null }[];
   valuations: { id: string; value: number; valued_on: string; note: string | null }[];
+  onMove: () => void;
   onChanged: () => void;
   onDeleted: () => void;
 }
 
-function AssetDetail({ summary: s, existing, flows, valuations, onChanged, onDeleted }: DetailProps) {
+function AssetDetail({ summary: s, existing, images, flows, valuations, onMove, onChanged, onDeleted }: DetailProps) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState('');
   const [date, setDate] = useState(todayIso());
@@ -217,11 +481,19 @@ function AssetDetail({ summary: s, existing, flows, valuations, onChanged, onDel
     }
   }
 
-  if (editing) return <AssetForm initial={s.asset} existing={existing} onSaved={() => { setEditing(false); onChanged(); }} />;
+  if (editing) {
+    return <AssetForm initial={s.asset} existing={existing} images={images} onSaved={() => { setEditing(false); onChanged(); }} />;
+  }
 
   return (
     <div className="space-y-4">
-      <AssetRow summary={s} />
+      <AssetRow summary={s} images={images} />
+      {s.asset.opening_amount > 0 && (
+        <p className="text-xs text-slate-500">
+          รวมเงินที่มีอยู่ก่อนเริ่มบันทึก {formatMoney(Number(s.asset.opening_amount))}
+          {s.asset.opening_date && ` (ณ ${formatThaiDate(s.asset.opening_date)})`}
+        </p>
+      )}
 
       <form
         className="rounded-lg bg-amber-50 p-3"
@@ -235,8 +507,8 @@ function AssetDetail({ summary: s, existing, flows, valuations, onChanged, onDel
           });
         }}
       >
-        <div className="text-sm font-medium">อัปเดตมูลค่าปัจจุบัน</div>
-        <p className="text-xs text-slate-500">เช่น มูลค่าพอร์ตใน Dime วันนี้ หรือราคาทองตอนนี้ — ใช้คำนวณกำไร/ขาดทุน</p>
+        <div className="text-sm font-medium">อัปเดตมูลค่าตลาดวันนี้</div>
+        <p className="text-xs text-slate-500">เช่น มูลค่าพอร์ตใน Dime หรือราคาทองตอนนี้ — ใช้คำนวณกำไร/ขาดทุน</p>
         <div className="mt-2 flex gap-2">
           <input className="input" inputMode="decimal" value={value} onChange={(e) => setValue(e.target.value)} placeholder={formatMoney(s.value)} />
           <input className="input w-auto" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
@@ -245,7 +517,7 @@ function AssetDetail({ summary: s, existing, flows, valuations, onChanged, onDel
       </form>
 
       <div>
-        <h3 className="mb-1 text-sm font-semibold">รายการเก็บ / ถอน</h3>
+        <h3 className="mb-1 text-sm font-semibold">รายการเก็บ / ถอน / ย้าย</h3>
         {flows.length === 0 && <p className="text-xs text-slate-400">ยังไม่มี</p>}
         <ul className="divide-y divide-slate-100 text-sm">
           {flows.map((f) => (
@@ -282,9 +554,12 @@ function AssetDetail({ summary: s, existing, flows, valuations, onChanged, onDel
       )}
 
       <ErrorText>{error}</ErrorText>
-      <div className="flex justify-end gap-2">
+      <div className="flex flex-wrap justify-end gap-2">
+        <button className="btn-secondary px-2 py-1 text-xs" onClick={onMove}>
+          ↔ ย้ายไปที่อื่น
+        </button>
         <button className="btn-secondary px-2 py-1 text-xs" onClick={() => setEditing(true)}>
-          แก้ไข
+          แก้ไข / ตั้งยอดที่มีอยู่
         </button>
         <button
           className="btn-danger px-2 py-1 text-xs"

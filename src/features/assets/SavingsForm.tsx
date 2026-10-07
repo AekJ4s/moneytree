@@ -4,6 +4,7 @@ import { todayIso } from '../../lib/format';
 import { errorMessage, useAsync } from '../../lib/useAsync';
 import { createTransaction } from '../transactions/api';
 import { createAsset, listAssets } from './api';
+import { AssetIcon, useAssetImages } from './AssetIcon';
 import { ASSET_KINDS, ASSET_PRESETS, type Asset } from './types';
 
 /**
@@ -21,6 +22,7 @@ export function SavingsForm({ defaultDate, onSaved }: { defaultDate?: string; on
   const [error, setError] = useState<string | null>(null);
 
   const list = assets.data ?? [];
+  const images = useAssetImages(list);
   const missingPresets = ASSET_PRESETS.filter((p) => !list.some((a) => a.name === p.name));
 
   async function addPreset(name: string) {
@@ -94,7 +96,7 @@ export function SavingsForm({ defaultDate, onSaved }: { defaultDate?: string; on
                 assetId === a.id ? 'bg-amber-50 ring-amber-500' : 'ring-slate-200 hover:bg-slate-50'
               }`}
             >
-              <span className="text-lg">{a.icon ?? ASSET_KINDS[a.kind].icon}</span>
+              <AssetIcon asset={a} images={images} size="sm" />
               <span className="truncate">{a.name}</span>
             </button>
           ))}
