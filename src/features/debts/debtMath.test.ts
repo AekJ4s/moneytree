@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildSchedule,
+  creditLine,
   interestByDays,
   monthlyRate,
   rebalanceFixedPayment,
   splitInterest,
+  summarizeAll,
   unpaidInterest,
   summarizeDebt,
   type InterestSplitTarget,
@@ -271,5 +273,21 @@ describe('revolving principal vs billed interest (LINE BK app figures)', () => {
     const s = summarizeDebt(mom, [], [entry('interest', 1399.53)], '2026-10-07');
     expect(s.outstanding).toBe(61399.53);
     expect(s.remainingPrincipal).toBe(60000);
+  });
+});
+
+describe('creditLine', () => {
+  it('subtracts every open debt of the creditor from the shared limit', () => {
+    const lineBk = (id: string, kind: Debt['kind'], principal: number): Debt => ({ ...baseDebt, id, kind, principal, creditor_id: 'linebk' });
+    const open = summarizeAll(
+      {
+        debts: [lineBk('mom', 'revolving', 60000), lineBk('me', 'revolving', 11183.22), { ...baseDebt, id: 'other', creditor_id: 'ktc' }],
+        installments: [inst(1, '2026-10-20', 3000)].map((i) => ({ ...i, debt_id: 'other' })),
+        entries: [],
+      },
+      '2026-10-07',
+    );
+    expect(creditLine(100000, 'linebk', open)).toEqual({ limit: 100000, used: 71183.22, available: 28816.78, usedRatio: 0.7118322 });
+    expect(creditLine(null, 'linebk', open)).toBeNull();
   });
 });

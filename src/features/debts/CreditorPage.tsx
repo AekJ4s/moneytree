@@ -7,7 +7,8 @@ import { deleteCreditor, getCreditor, listCreditors, loadDebtData } from './api'
 import { CreditorForm } from './CreditorForm';
 import { CreditorLogo, useLogoUrls } from './CreditorLogo';
 import { DebtCard } from './DebtCard';
-import { outstandingByBorrower, summarizeAll } from './debtMath';
+import { creditLine, outstandingByBorrower, summarizeAll } from './debtMath';
+import { CreditBar } from './CreditBar';
 import { DebtForm } from './DebtForm';
 import { InterestSplitForm } from './InterestSplitForm';
 import { KIND_LABEL, type DebtKind } from './types';
@@ -36,6 +37,7 @@ export function CreditorPage() {
   const dueThisMonth = open.reduce((s, d) => s + d.summary.dueThisMonth, 0);
   const closedCount = debts.filter((d) => d.closed_on).length;
   const byBorrower = outstandingByBorrower(open);
+  const line = c ? creditLine(c.credit_limit, c.id, open) : null;
   const openRevolving = debts.filter((d) => d.kind === 'revolving' && !d.closed_on);
   const knownBorrowers = Array.from(new Set(debts.map((d) => d.borrower).filter((b): b is string => !!b)));
 
@@ -74,6 +76,20 @@ export function CreditorPage() {
             {outstanding > revolvingPrincipal + installmentPrincipal &&
               ` · รวมดอกเบี้ยที่ต้องจ่าย ${formatMoney(outstanding)}`}
           </p>
+          {line ? (
+            <div className="max-w-xs">
+              <CreditBar line={line} />
+            </div>
+          ) : (
+            <p className="text-xs text-slate-400">ยังไม่ได้ตั้งวงเงินรวม — กด “แก้ไข” เพื่อใส่</p>
+          )}
+          {(c.statement_day || c.due_day) && (
+            <p className="text-xs text-slate-500">
+              {c.statement_day && `ตัดรอบวันที่ ${c.statement_day}`}
+              {c.statement_day && c.due_day && ' · '}
+              {c.due_day && `ครบกำหนดชำระวันที่ ${c.due_day}`}
+            </p>
+          )}
           {byBorrower.others.length > 0 && (
             <p className="text-xs text-slate-500">
               ของฉัน {formatMoney(byBorrower.mine)}

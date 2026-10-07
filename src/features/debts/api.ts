@@ -28,15 +28,28 @@ export async function getCreditor(id: string): Promise<Creditor> {
   return unwrap(await supabase.from('creditors').select('*').eq('id', id).single());
 }
 
-export async function createCreditor(name: string, logo: string | null): Promise<Creditor> {
+export async function createCreditor(input: CreditorInput): Promise<Creditor> {
   const count = unwrap(await supabase.from('creditors').select('id')).length;
   return unwrap(
-    await supabase.from('creditors').insert({ name: name.trim(), logo, sort_order: count + 1 }).select().single(),
+    await supabase
+      .from('creditors')
+      .insert({ ...input, name: input.name.trim(), sort_order: count + 1 })
+      .select()
+      .single(),
   );
 }
 
-export async function updateCreditor(id: string, patch: Partial<Pick<Creditor, 'name' | 'logo'>>): Promise<void> {
-  check(await supabase.from('creditors').update(patch).eq('id', id));
+/** Updates a creditor; its own revolving balances follow the creditor's statement/due days. */
+export async function updateCreditor(id: string, input: CreditorInput): Promise<void> {
+  check(await supabase.from('creditors').update({ ...input, name: input.name.trim() }).eq('id', id));
+  check(
+    await supabase
+      .from('debts')
+      .update({ statement_day: input.statement_day, due_day: input.due_day })
+      .eq('creditor_id', id)
+      .eq('kind', 'revolving')
+      .is('borrower', null),
+  );
 }
 
 export async function deleteCreditor(creditor: Creditor): Promise<void> {
@@ -178,34 +191,4 @@ export async function rolloverRevolving(input: {
   );
 }
 
-export interface PaymentCard {
-  id: string;
-  label: string;
-  statement_day: number | null;
-  due_day: number | null;
-}
-
-/** Open revolving debts (cards / credit lines) that an expense can be charged to. */
-export async function listPaymentCards(): Promise<PaymentCard[]> {
-  const rows = unwrap(
-    await supabase
-      .from('debts')
-      .select('id, name, borrower, statement_day, due_day, creditor:creditors(name)')
-      .eq('kind', 'revolving')
-      .is('closed_on', null)
-      .order('created_at'),
-  ) as unknown as {
-    id: string;
-    name: string;
-    borrower: string | null;
-    statement_day: number | null;
-    due_day: number | null;
-    creditor: { name: string } | null;
-  }[];
-  return rows.map((r) => ({
-    id: r.id,
-    label: `${r.creditor?.name ?? ''} · ${r.name}${r.borrower ? ` (${r.borrower})` : ''}`,
-    statement_day: r.statement_day,
-    due_day: r.due_day,
-  }));
-}
+export type CreditorInput = Pick<Creditor, 'name' | 'logo' | 'credit_limit' | 'statement_day' | 'due_day'>;

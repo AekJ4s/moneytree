@@ -6,7 +6,8 @@ import { useAsync } from '../../lib/useAsync';
 import { listCreditors, loadDebtData } from './api';
 import { CreditorForm } from './CreditorForm';
 import { CreditorLogo, useLogoUrls } from './CreditorLogo';
-import { outstandingByBorrower, summarizeAll } from './debtMath';
+import { CreditBar } from './CreditBar';
+import { creditLine, outstandingByBorrower, summarizeAll, type CreditLine } from './debtMath';
 import type { Creditor } from './types';
 
 export function DebtsPage() {
@@ -27,6 +28,9 @@ export function DebtsPage() {
     .sort((a, b) => a.summary.nextDue!.date.localeCompare(b.summary.nextDue!.date))
     .slice(0, 6);
   const creditorById = new Map((creditors.data ?? []).map((c) => [c.id, c]));
+  const lines = (creditors.data ?? []).map((c) => creditLine(c.credit_limit, c.id, open)).filter((l): l is CreditLine => !!l);
+  const totalAvailable = lines.reduce((s, l) => s + l.available, 0);
+  const totalLimit = lines.reduce((s, l) => s + l.limit, 0);
 
   function creditorStats(c: Creditor) {
     const mine = open.filter((d) => d.debt.creditor_id === c.id);
@@ -35,6 +39,7 @@ export function DebtsPage() {
       outstanding: mine.reduce((s, d) => s + d.summary.remainingPrincipal, 0),
       dueThisMonth: mine.reduce((s, d) => s + d.summary.dueThisMonth, 0),
       overdue: mine.reduce((s, d) => s + d.summary.overdueCount, 0),
+      line: creditLine(c.credit_limit, c.id, open),
     };
   }
 
@@ -47,9 +52,14 @@ export function DebtsPage() {
         </button>
       </div>
 
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         <Stat label="เงินต้นคงเหลือ" value={total} tone="text-rose-600" />
         <Stat label="ต้องจ่ายเดือนนี้" value={dueThisMonth} tone="text-amber-600" />
+        <Stat
+          label={lines.length > 0 ? `วงเงินคงเหลือ (จาก ${formatMoney(totalLimit)})` : 'วงเงินคงเหลือ (ยังไม่ได้ตั้งวงเงิน)'}
+          value={totalAvailable}
+          tone="text-emerald-600"
+        />
         <Stat label="ดอกเบี้ยที่เหลือ (ผ่อน)" value={remainingInterest} tone="text-slate-700" />
       </div>
       {byBorrower.others.length > 0 && (
@@ -71,8 +81,9 @@ export function DebtsPage() {
                 <div className="text-xs text-slate-500">{st.count > 0 ? `${st.count} รายการ` : 'ไม่มีหนี้ค้าง'}</div>
                 {st.dueThisMonth > 0 && <div className="text-xs text-amber-600">เดือนนี้ {formatMoney(st.dueThisMonth)}</div>}
                 {st.overdue > 0 && <div className="text-xs text-rose-600">เลยกำหนด {st.overdue} งวด</div>}
+                {st.line && <CreditBar line={st.line} />}
               </div>
-              <div className="text-right font-semibold tabular-nums text-rose-600">{formatMoney(st.outstanding)}</div>
+              <div className="self-start text-right font-semibold tabular-nums text-rose-600">{formatMoney(st.outstanding)}</div>
             </Link>
           );
         })}

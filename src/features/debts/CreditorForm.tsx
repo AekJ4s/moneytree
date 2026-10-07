@@ -18,6 +18,9 @@ export function CreditorForm({ initial, initialLogoUrl, existingNames, onSaved }
   const [name, setName] = useState(initial?.name ?? '');
   const [logo, setLogo] = useState<string | null>(initial?.logo ?? null);
   const [file, setFile] = useState<File | null>(null);
+  const [creditLimit, setCreditLimit] = useState(initial?.credit_limit != null ? String(initial.credit_limit) : '');
+  const [statementDay, setStatementDay] = useState(initial?.statement_day ? String(initial.statement_day) : '');
+  const [dueDay, setDueDay] = useState(initial?.due_day ? String(initial.due_day) : '');
   const [preview, setPreview] = useState<string | null>(initialLogoUrl ?? null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -54,11 +57,18 @@ export function CreditorForm({ initial, initialLogoUrl, existingNames, onSaved }
     setError(null);
     try {
       const finalLogo = file ? await uploadCreditorLogo(userId, file) : logo;
+      const input = {
+        name: trimmed,
+        logo: finalLogo,
+        credit_limit: creditLimit.trim() ? Number(creditLimit.replace(/,/g, '')) : null,
+        statement_day: statementDay ? Number(statementDay) : null,
+        due_day: dueDay ? Number(dueDay) : null,
+      };
       if (initial) {
-        await updateCreditor(initial.id, { name: trimmed, logo: finalLogo });
+        await updateCreditor(initial.id, input);
         onSaved();
       } else {
-        onSaved(await createCreditor(trimmed, finalLogo));
+        onSaved(await createCreditor(input));
       }
     } catch (err) {
       setError(errorMessage(err));
@@ -117,6 +127,24 @@ export function CreditorForm({ initial, initialLogoUrl, existingNames, onSaved }
           </div>
         </div>
       )}
+
+      <div className="grid grid-cols-3 gap-2">
+        <label className="block">
+          <span className="text-xs text-slate-600">วงเงินรวม</span>
+          <input className="input mt-1" inputMode="decimal" value={creditLimit} onChange={(e) => setCreditLimit(e.target.value)} placeholder="เช่น 100000" />
+        </label>
+        <label className="block">
+          <span className="text-xs text-slate-600">วันตัดรอบบัญชี</span>
+          <input className="input mt-1" type="number" min={1} max={31} value={statementDay} onChange={(e) => setStatementDay(e.target.value)} placeholder="เช่น 21" />
+        </label>
+        <label className="block">
+          <span className="text-xs text-slate-600">ครบกำหนดชำระ</span>
+          <input className="input mt-1" type="number" min={1} max={31} value={dueDay} onChange={(e) => setDueDay(e.target.value)} placeholder="เช่น 20" />
+        </label>
+      </div>
+      <p className="text-xs text-slate-500">
+        วงเงินรวมใช้ร่วมกันทุกก้อนของเจ้าหนี้นี้ (บัตร เงินหมุน และผ่อน) — ระบบคำนวณวงเงินคงเหลือให้ · เว้นว่างได้
+      </p>
 
       {logo && !file && !isBundledLogo(logo) && !preview && <p className="text-xs text-slate-500">ใช้โลโก้ที่อัปโหลดไว้เดิม</p>}
       <ErrorText>{error}</ErrorText>

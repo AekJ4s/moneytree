@@ -8,6 +8,11 @@ export interface Creditor {
   name: string;
   logo: string | null;
   sort_order: number;
+  /** Total credit line (วงเงินรวม) shared by all debts with this creditor. */
+  credit_limit: number | null;
+  /** Card statement cut-off and payment due days. */
+  statement_day: number | null;
+  due_day: number | null;
   created_at: string;
 }
 

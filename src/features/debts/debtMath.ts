@@ -359,3 +359,21 @@ export function unpaidInterest(entries: DebtEntry[]): number {
   }
   return round2(interest);
 }
+
+export interface CreditLine {
+  limit: number;
+  /** Principal still owed on every open debt with this creditor (cards, cash lines and installments). */
+  used: number;
+  available: number;
+  usedRatio: number;
+}
+
+/** Remaining credit (วงเงินคงเหลือ) of a creditor, or null when no credit limit is set. */
+export function creditLine(creditLimit: number | null, creditorId: string, open: DebtWithSummary[]): CreditLine | null {
+  if (creditLimit == null) return null;
+  const limit = Number(creditLimit);
+  const used = round2(
+    open.filter((d) => d.debt.creditor_id === creditorId).reduce((s, d) => s + d.summary.remainingPrincipal, 0),
+  );
+  return { limit, used, available: round2(limit - used), usedRatio: limit > 0 ? used / limit : 0 };
+}

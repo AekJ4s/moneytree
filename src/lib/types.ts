@@ -54,8 +54,8 @@ export interface RecurringItem {
   next_due_date: string;
   due_day: number | null;
   due_last_day: boolean;
-  /** Paid with this card / credit line (a revolving debt); recording also adds a charge to it. */
-  pay_debt_id: string | null;
+  /** Charged to this creditor's card / credit line; recording also adds a charge to it. */
+  pay_creditor_id: string | null;
   active: boolean;
   note: string | null;
   created_at: string;

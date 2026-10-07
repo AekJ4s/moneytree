@@ -10,12 +10,13 @@ import { listCategories } from '../transactions/api';
 import { PayeeCategoryOptions } from '../transactions/TransactionForm';
 import { createRecurring, deleteRecurring, listRecurring, updateRecurring } from './api';
 import { DueRecurringList } from './DueRecurringList';
-import { listPaymentCards, type PaymentCard } from '../debts/api';
+import { listCreditors } from '../debts/api';
+import type { Creditor } from '../debts/types';
 import { dueDateForStatement, statementDateFor } from '../debts/cardCycle';
 
 export function RecurringPage() {
   const items = useAsync(listRecurring, []);
-  const lookups = useAsync(() => Promise.all([listPayees(), listCategories(), listPaymentCards()]), []);
+  const lookups = useAsync(() => Promise.all([listPayees(), listCategories(), listCreditors()]), []);
   const cards = lookups.data?.[2] ?? [];
   const [editing, setEditing] = useState<RecurringItem | 'new' | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -81,7 +82,7 @@ export function RecurringPage() {
                         {item.category && ` · ${item.category}`}
                         {!item.active && ' · หยุดไว้'}
                       </div>
-                      <CardBillingHint card={cards.find((c) => c.id === item.pay_debt_id)} date={item.next_due_date} />
+                      <CardBillingHint card={cards.find((c) => c.id === item.pay_creditor_id)} date={item.next_due_date} />
                     </div>
                     <div className={`font-semibold tabular-nums ${type === 'income' ? 'text-emerald-600' : 'text-rose-600'}`}>
                       {formatMoney(item.amount)}
@@ -143,19 +144,19 @@ interface FormProps {
   initial?: RecurringItem;
   payees: Payee[];
   categories: string[];
-  cards: PaymentCard[];
+  cards: Creditor[];
   onSaved: () => void;
 }
 
-/** "💳 KTC · บัตรหลัก → บิล 30 ต.ค. · จ่าย 20 พ.ย." for an expense charged to a card. */
-function CardBillingHint({ card, date }: { card?: PaymentCard; date: string }) {
+/** "💳 KTC → บิลรอบ 21 ต.ค. · จ่าย 20 พ.ย." for an expense charged to a card. */
+function CardBillingHint({ card, date }: { card?: Creditor; date: string }) {
   if (!card) return null;
   const statement = card.statement_day ? statementDateFor(date, card.statement_day) : null;
   const due = statement && card.due_day ? dueDateForStatement(statement, card.due_day) : null;
   const short = (iso: string) => formatThaiDate(iso, { day: 'numeric', month: 'short' });
   return (
     <div className="text-xs text-sky-700">
-      💳 {card.label}
+      💳 {card.name}
       {statement && ` → บิลรอบ ${short(statement)}`}
       {due && ` · จ่าย ${short(due)}`}
     </div>
@@ -175,7 +176,7 @@ function RecurringForm({ initial, payees, categories, cards, onSaved }: FormProp
   );
   const [payeeName, setPayeeName] = useState(payees.find((p) => p.id === initial?.payee_id)?.name ?? '');
   const [category, setCategory] = useState(initial?.category ?? '');
-  const [payDebtId, setPayDebtId] = useState(initial?.pay_debt_id ?? '');
+  const [payCreditorId, setPayCreditorId] = useState(initial?.pay_creditor_id ?? '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -219,7 +220,7 @@ function RecurringForm({ initial, payees, categories, cards, onSaved }: FormProp
         due_last_day: rule.due_last_day,
         payee_id: payee?.id ?? null,
         category: category.trim() || null,
-        pay_debt_id: type === 'expense' && payDebtId ? payDebtId : null,
+        pay_creditor_id: type === 'expense' && payCreditorId ? payCreditorId : null,
         note: null,
         active: initial?.active ?? true,
       };
@@ -291,24 +292,20 @@ function RecurringForm({ initial, payees, categories, cards, onSaved }: FormProp
       {type === 'expense' && (
         <label className="block">
           <span className="text-sm text-slate-600">จ่ายผ่าน</span>
-          <select className="input mt-1" value={payDebtId} onChange={(e) => setPayDebtId(e.target.value)}>
+          <select className="input mt-1" value={payCreditorId} onChange={(e) => setPayCreditorId(e.target.value)}>
             <option value="">บัญชี / เงินสด</option>
             {cards.map((c) => (
               <option key={c.id} value={c.id}>
-                💳 {c.label}
+                💳 {c.name}
               </option>
             ))}
           </select>
-          {payDebtId ? (
+          {payCreditorId ? (
             <span className="mt-1 block text-xs text-slate-500">
-              ตอนบันทึก ระบบจะลงรายจ่ายและเพิ่มยอดในบัตรนี้ให้ด้วย — ตอนจ่ายบิลบัตรไม่ต้องนับเป็นรายจ่ายซ้ำ
+              ตอนบันทึก ระบบจะลงรายจ่าย และเพิ่มยอดบัตรเครดิตของเจ้าหนี้นี้ให้เอง (สร้างให้อัตโนมัติถ้ายังไม่มี) — วงเงินคงเหลือจะลดลงตาม
             </span>
-          ) : (
-            cards.length === 0 && (
-              <span className="mt-1 block text-xs text-slate-500">ยังไม่มีบัตร — เพิ่มบัตรเป็นหนี้แบบ “เงินหมุน / บัตรเครดิต” ในหน้าหนี้สินก่อน</span>
-            )
-          )}
-          <CardBillingHint card={cards.find((c) => c.id === payDebtId)} date={nextDue} />
+          ) : null}
+          <CardBillingHint card={cards.find((c) => c.id === payCreditorId)} date={nextDue} />
         </label>
       )}
       <PayeeCategoryOptions payees={payees} categories={categories} />
