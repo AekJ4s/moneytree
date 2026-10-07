@@ -4,6 +4,7 @@ import { ErrorText, Modal } from '../../components/Modal';
 import { Stat } from '../../components/Stat';
 import { formatMoney, monthRange, todayIso } from '../../lib/format';
 import { useAsync } from '../../lib/useAsync';
+import { useOnDataChanged } from '../../lib/events';
 import { DueRecurringList } from '../recurring/DueRecurringList';
 import { signSlipUrls } from '../slips/storage';
 import { listTransactions } from '../transactions/api';
@@ -19,6 +20,10 @@ export function DashboardPage() {
   const month = useAsync(() => listTransactions(from, to), [from, to]);
   const [adding, setAdding] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  useOnDataChanged(() => {
+    month.reload();
+    setRefreshKey((k) => k + 1);
+  });
 
   const txns = month.data ?? [];
   const totals = sumMoney(txns);

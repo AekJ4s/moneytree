@@ -5,6 +5,7 @@ import { Stat } from '../../components/Stat';
 import { formatMoney, formatThaiDate, monthRange, parseIsoDate, todayIso, toIsoDate } from '../../lib/format';
 import type { Transaction } from '../../lib/types';
 import { errorMessage, useAsync } from '../../lib/useAsync';
+import { useOnDataChanged } from '../../lib/events';
 import { listPayees } from '../payees/api';
 import { removeSlipImage, signSlipUrls } from '../slips/storage';
 import { deleteTransaction, listCategories, listTransactions } from './api';
@@ -36,6 +37,10 @@ export function DailyPage() {
   const month = useAsync(() => listTransactions(from, to), [from, to]);
   const lookups = useAsync(() => Promise.all([listPayees(), listCategories(), listCreditors(), listAssets(), listIncomeSources()]), []);
   const movements = useAsync(() => listCashMovements(from, to), [from, to]);
+  useOnDataChanged(() => {
+    month.reload();
+    movements.reload();
+  });
 
   const byDay = useMemo(() => {
     const map = new Map<string, Transaction[]>();

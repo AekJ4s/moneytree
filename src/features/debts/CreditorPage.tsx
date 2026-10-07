@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ErrorText, Modal } from '../../components/Modal';
 import { formatMoney, todayIso } from '../../lib/format';
 import { errorMessage, useAsync } from '../../lib/useAsync';
+import { useOnDataChanged } from '../../lib/events';
 import { deleteCreditor, getCreditor, listCreditors, loadDebtData } from './api';
 import { CreditorForm } from './CreditorForm';
 import { CreditorLogo, useLogoUrls } from './CreditorLogo';
@@ -21,6 +22,7 @@ export function CreditorPage() {
   const creditor = useAsync(() => getCreditor(creditorId), [creditorId]);
   const allCreditors = useAsync(listCreditors, []);
   const data = useAsync(() => loadDebtData(creditorId), [creditorId]);
+  useOnDataChanged(data.reload);
   const logos = useLogoUrls(creditor.data ? [creditor.data] : []);
   const [dialog, setDialog] = useState<'debt' | 'creditor' | 'split' | null>(null);
   const [showClosed, setShowClosed] = useState(false);

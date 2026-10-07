@@ -2,6 +2,7 @@ import { useEffect, useState, type ChangeEvent, type DragEvent, type FormEvent }
 import { ErrorText, Modal } from '../../components/Modal';
 import { formatMoney, formatThaiDate, todayIso } from '../../lib/format';
 import { errorMessage, useAsync } from '../../lib/useAsync';
+import { useOnDataChanged } from '../../lib/events';
 import { useUserId } from '../auth/AuthProvider';
 import {
   addValuation,
@@ -36,6 +37,7 @@ type Dialog =
 
 export function AssetsPage() {
   const data = useAsync(() => Promise.all([listAssets(), listSavingsFlows(), listValuations(), listGoals()]), []);
+  useOnDataChanged(data.reload);
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
 

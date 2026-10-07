@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { ErrorText, Modal } from '../../components/Modal';
 import { formatMoney, formatThaiDate, todayIso } from '../../lib/format';
 import { useAsync } from '../../lib/useAsync';
+import { useOnDataChanged } from '../../lib/events';
 import { listCreditors, loadDebtData } from './api';
 import { CreditorForm } from './CreditorForm';
 import { CreditorLogo, useLogoUrls } from './CreditorLogo';
@@ -14,6 +15,7 @@ export function DebtsPage() {
   const navigate = useNavigate();
   const creditors = useAsync(listCreditors, []);
   const data = useAsync(() => loadDebtData(), []);
+  useOnDataChanged(data.reload);
   const logos = useLogoUrls(creditors.data ?? []);
   const [adding, setAdding] = useState(false);
   const today = todayIso();

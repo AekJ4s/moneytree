@@ -1,6 +1,10 @@
-import { Suspense, useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../features/auth/AuthProvider';
+import { Modal } from './Modal';
+import { Toaster } from './Toaster';
+
+const EntryHub = lazy(() => import('../features/money/EntryHub').then((m) => ({ default: m.EntryHub })));
 
 interface NavItem {
   to: string;
@@ -31,6 +35,7 @@ export function Layout() {
   const { signOut } = useAuth();
   const location = useLocation();
   const [moreOpen, setMoreOpen] = useState(false);
+  const [entryOpen, setEntryOpen] = useState(false);
   const secondary = NAV.filter((n) => !n.primary);
   const secondaryActive = secondary.some((n) => location.pathname.startsWith(n.to));
 
@@ -56,6 +61,24 @@ export function Layout() {
           <Outlet />
         </Suspense>
       </main>
+
+      {/* Record from any page; the page underneath refreshes itself via emitDataChanged. */}
+      <button
+        className="fixed right-4 bottom-20 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-600 text-3xl text-white shadow-lg transition hover:scale-105 hover:bg-emerald-700 lg:bottom-6"
+        onClick={() => setEntryOpen(true)}
+        aria-label="บันทึกรายการ"
+        title="บันทึกรายการ"
+      >
+        +
+      </button>
+      {entryOpen && (
+        <Modal title="บันทึกรายการ" onClose={() => setEntryOpen(false)}>
+          <Suspense fallback={<p className="text-sm text-slate-400">กำลังโหลด…</p>}>
+            <EntryHub onSaved={() => setEntryOpen(false)} />
+          </Suspense>
+        </Modal>
+      )}
+      <Toaster />
 
       {moreOpen && (
         <div className="fixed inset-0 z-20 lg:hidden" onClick={() => setMoreOpen(false)}>

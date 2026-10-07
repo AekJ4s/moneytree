@@ -14,6 +14,7 @@ import { isSavingsCategory } from '../../lib/savings';
 import { ensurePayee } from '../payees/api';
 import { createRecurring } from '../recurring/api';
 import { createTransaction, updateTransaction } from './api';
+import { lastForPayee, type QuickTemplate, type RecentTxn } from '../quick/quickTemplates';
 
 interface Props {
   payees: Payee[];
@@ -26,6 +27,10 @@ interface Props {
   incomeSources?: IncomeSource[];
   onIncomeSourcesChanged?: () => void;
   initial?: Transaction;
+  /** Quick-add template to start a new entry from (✏️ on a quick button). */
+  template?: QuickTemplate;
+  /** Recent entries, used to autofill amount/category/card when a known payee is picked. */
+  recent?: RecentTxn[];
   defaultDate?: string;
   onSaved: () => void;
 }
@@ -38,22 +43,27 @@ export function TransactionForm({
   incomeSources = [],
   onIncomeSourcesChanged,
   initial,
+  template,
+  recent = [],
   defaultDate,
   onSaved,
 }: Props) {
-  const [type, setType] = useState<TxnType>(initial?.type ?? 'expense');
-  const [amount, setAmount] = useState(initial ? String(initial.amount) : '');
+  const [type, setType] = useState<TxnType>(initial?.type ?? template?.type ?? 'expense');
+  const [amount, setAmount] = useState(initial ? String(initial.amount) : template ? String(template.amount) : '');
   const [date, setDate] = useState(initial?.txn_date ?? defaultDate ?? todayIso());
   const [time, setTime] = useState(initial?.txn_time?.slice(0, 5) ?? '');
-  const [payeeName, setPayeeName] = useState(initial?.payee?.name ?? '');
-  const [category, setCategory] = useState(initial?.category ?? '');
-  const [note, setNote] = useState(initial?.note ?? '');
+  const [payeeName, setPayeeName] = useState(initial?.payee?.name ?? template?.payeeName ?? '');
+  const [category, setCategory] = useState(initial?.category ?? template?.category ?? '');
+  const [note, setNote] = useState(initial?.note ?? template?.note ?? '');
   // '' = paid from the account; otherwise the creditor (card) it was charged to.
-  const [cardId, setCardId] = useState(initial?.payment_method === 'card' ? (initial.creditor_id ?? '') : '');
+  const [cardId, setCardId] = useState(
+    initial ? (initial.payment_method === 'card' ? (initial.creditor_id ?? '') : '') : (template?.creditor_id ?? ''),
+  );
   const [makeRecurring, setMakeRecurring] = useState(false);
   const [assetId, setAssetId] = useState(initial?.asset_id ?? '');
   const savings = isSavingsCategory(category) || !!assetId;
-  const [sourceId, setSourceId] = useState(initial?.income_source_id ?? '');
+  const [sourceId, setSourceId] = useState(initial?.income_source_id ?? template?.income_source_id ?? '');
+  const [autofilled, setAutofilled] = useState(false);
   const showSource = type === 'income' && !savings;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -64,6 +74,17 @@ export function TransactionForm({
     if (known) {
       setType(known.default_type);
       if (!category && known.category) setCategory(known.category);
+    }
+    // New entries: reuse what was used last time with this payee (only fills empty fields).
+    const last = initial ? null : lastForPayee(recent, name);
+    if (last) {
+      if (!amount) setAmount(String(last.amount));
+      if (!category && last.category) setCategory(last.category);
+      if (!cardId && last.payment_method === 'card' && last.creditor_id) setCardId(last.creditor_id);
+      if (!sourceId && last.income_source_id) setSourceId(last.income_source_id);
+      setAutofilled(true);
+    } else {
+      setAutofilled(false);
     }
   }
 
@@ -171,6 +192,7 @@ export function TransactionForm({
           onChange={(e) => onPayeeChange(e.target.value)}
           placeholder="เช่น ร้านข้าว, บริษัท"
         />
+        {autofilled && <span className="mt-1 block text-xs text-emerald-700">✨ เติมยอด/หมวด/วิธีจ่ายตามครั้งล่าสุดให้แล้ว — แก้ได้</span>}
       </label>
       <label className="block">
         <span className="text-sm text-slate-600">หมวดหมู่</span>
