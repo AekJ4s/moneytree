@@ -183,7 +183,7 @@ export function ImportPage() {
       <ErrorText>{error}</ErrorText>
       {result && (
         <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-          ✓ {result} — <Link to="/daily" className="underline">ดูรายวัน</Link>
+          ✓ {result} · <Link to="/daily" className="underline">ดูรายวัน</Link>
         </p>
       )}
 
@@ -210,12 +210,12 @@ export function ImportPage() {
           </div>
           {!headerRecognized && (
             <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
-              ไม่พบหัวตารางตาม template — อ่านคอลัมน์ตามลำดับ A–G แทน กรุณาตรวจความถูกต้องก่อนนำเข้า
+              ไม่พบหัวตารางตาม template จึงอ่านคอลัมน์ตามลำดับ A–G แทน กรุณาตรวจความถูกต้องก่อนนำเข้า
             </p>
           )}
           {counts['possible-duplicate'] > 0 && (
             <p className="text-xs text-amber-700">
-              แถวสีเหลืองมีวันที่ ประเภท และยอดตรงกับรายการที่บันทึกจากสลิป/บันทึกเองแล้ว ระบบจึงไม่เลือกไว้ — ติ๊กเองถ้าเป็นคนละรายการ
+              แถวสีเหลืองมีวันที่ ประเภท และยอดตรงกับรายการที่บันทึกจากสลิป/บันทึกเองแล้ว ระบบจึงไม่เลือกไว้ ถ้าเป็นคนละรายการให้ติ๊กเอง
             </p>
           )}
 

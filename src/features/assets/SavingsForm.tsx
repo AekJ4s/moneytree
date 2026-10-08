@@ -126,8 +126,8 @@ export function SavingsForm({ defaultDate, onSaved }: { defaultDate?: string; on
       <input className="input" placeholder="หมายเหตุ เช่น ซื้อหุ้น NBIS" value={note} onChange={(e) => setNote(e.target.value)} />
       <p className="text-xs text-slate-500">
         {direction === 'deposit'
-          ? 'เงินในบัญชีลดลงและไปอยู่ในที่เก็บนี้ — ไม่นับเป็นรายจ่าย แสดงเป็นสีทองในปฏิทิน'
-          : 'เงินกลับเข้าบัญชี — ไม่นับเป็นรายรับ'}
+          ? 'เงินในบัญชีลดลงและไปอยู่ในที่เก็บนี้ ไม่นับเป็นรายจ่าย และแสดงเป็นสีทองในปฏิทิน'
+          : 'เงินกลับเข้าบัญชี โดยไม่นับเป็นรายรับ'}
       </p>
       <ErrorText>{error ?? assets.error}</ErrorText>
       <button className="btn-primary w-full bg-amber-500 hover:bg-amber-600" disabled={busy}>

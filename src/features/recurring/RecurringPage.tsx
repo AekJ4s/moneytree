@@ -276,7 +276,7 @@ function RecurringForm({ initial, payees, categories, cards, sources, onSourcesC
       </label>
       {preview.length > 0 && (
         <p className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
-          {describeRecurrence(rule)} — ครั้งต่อไป: {preview.map((d) => formatThaiDate(d)).join(', ')}
+          {describeRecurrence(rule)} · ครั้งต่อไป: {preview.map((d) => formatThaiDate(d)).join(', ')}
         </p>
       )}
       <div className="grid grid-cols-2 gap-2">
@@ -305,7 +305,7 @@ function RecurringForm({ initial, payees, categories, cards, sources, onSourcesC
           </select>
           {payCreditorId ? (
             <span className="mt-1 block text-xs text-slate-500">
-              ตอนบันทึก ระบบจะลงรายจ่าย และเพิ่มยอดบัตรเครดิตของเจ้าหนี้นี้ให้เอง (สร้างให้อัตโนมัติถ้ายังไม่มี) — วงเงินคงเหลือจะลดลงตาม
+              ตอนบันทึก ระบบจะลงรายจ่าย และเพิ่มยอดบัตรเครดิตของเจ้าหนี้นี้ให้เอง (ถ้ายังไม่มีบัตรจะสร้างให้) วงเงินคงเหลือจึงลดลงตาม
             </span>
           ) : null}
           <CardBillingHint card={cards.find((c) => c.id === payCreditorId)} date={nextDue} />

@@ -36,7 +36,7 @@ export function DueRecurringList({ onChanged }: { onChanged?: () => void }) {
   if (!due.loading && items.length === 0 && !due.error) return null;
 
   return (
-    <section className="card border-l-4 border-amber-400">
+    <section className="card border-l-4 border-l-amber-500">
       <h2 className="mb-2 font-semibold">⏰ รายการประจำที่ถึงกำหนด</h2>
       <ErrorText>{due.error ?? error}</ErrorText>
       <ul className="divide-y divide-slate-100">

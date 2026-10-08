@@ -187,7 +187,7 @@ export function DebtForm({ creditorId, initial, hasPayments, knownBorrowers = []
 
       {scheduleLocked && (
         <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
-          มีการชำระแล้ว จึงแก้ยอด/งวด/ดอกเบี้ยไม่ได้ — แก้ดอกเบี้ยแต่ละงวดได้ในตารางผ่อน
+          มีการชำระแล้ว จึงแก้ยอด/งวด/ดอกเบี้ยไม่ได้ แต่แก้ดอกเบี้ยแต่ละงวดได้ในตารางผ่อน
         </p>
       )}
 

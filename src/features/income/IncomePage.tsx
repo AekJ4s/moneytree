@@ -62,7 +62,7 @@ export function IncomePage() {
 
       {recurringWithoutSource.length > 0 && (
         <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
-          มีรายรับประจำ {recurringWithoutSource.length} รายการที่ยังไม่ระบุแหล่ง ({recurringWithoutSource.map((r) => r.name).join(', ')}) — แก้ได้ที่หน้ารายการประจำ
+          มีรายรับประจำ {recurringWithoutSource.length} รายการที่ยังไม่ระบุแหล่ง ({recurringWithoutSource.map((r) => r.name).join(', ')}) แก้ได้ที่หน้ารายการประจำ
         </p>
       )}
 
@@ -91,7 +91,7 @@ export function IncomePage() {
           </div>
         ))}
         {!data.loading && rows.length === 0 && (
-          <p className="py-6 text-center text-sm text-slate-400 sm:col-span-2">ยังไม่มีแหล่งรายได้ — เพิ่ม เช่น บริษัทที่ทำงาน, โปรเจคส่วนตัว, เงินจากบุพการี</p>
+          <p className="py-6 text-center text-sm text-slate-400 sm:col-span-2">ยังไม่มีแหล่งรายได้ เพิ่มได้ เช่น บริษัทที่ทำงาน โปรเจคส่วนตัว หรือเงินจากบุพการี</p>
         )}
       </div>
 

@@ -83,7 +83,7 @@ export function CreditorPage() {
               <CreditBar line={line} />
             </div>
           ) : (
-            <p className="text-xs text-slate-400">ยังไม่ได้ตั้งวงเงินรวม — กด “แก้ไข” เพื่อใส่</p>
+            <p className="text-xs text-slate-400">ยังไม่ได้ตั้งวงเงินรวม กด “แก้ไข” เพื่อใส่</p>
           )}
           {(c.statement_day || c.due_day) && (
             <p className="text-xs text-slate-500">
@@ -114,7 +114,7 @@ export function CreditorPage() {
       <ErrorText>{data.error ?? error}</ErrorText>
 
       {!data.loading && debts.length === 0 && (
-        <p className="py-8 text-center text-sm text-slate-400">ยังไม่มีหนี้ของ {c.name} — กด “เพิ่มหนี้”</p>
+        <p className="py-8 text-center text-sm text-slate-400">ยังไม่มีหนี้ของ {c.name} กด “เพิ่มหนี้”</p>
       )}
 
       {KIND_ORDER.map((kind) => {

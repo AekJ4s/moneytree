@@ -29,7 +29,7 @@ export function GoalsGrid({ refreshKey = 0 }: { refreshKey?: number }) {
         <h2 className="font-semibold">
           🌳 เป้าหมายการออม
           <span className="ml-2 text-sm font-normal text-slate-500">
-            ออม+ลงทุนรวม <b className="tabular-nums text-amber-600">{formatMoney(totals.value)}</b>
+            ออม+ลงทุนรวม <b className="figure font-medium text-amber-600">{formatMoney(totals.value)}</b>
           </span>
         </h2>
         <div className="flex gap-2 text-sm">
@@ -37,7 +37,7 @@ export function GoalsGrid({ refreshKey = 0 }: { refreshKey?: number }) {
             + เป้าหมาย
           </button>
           <Link to="/assets" className="text-emerald-700 hover:underline">
-            จัดการ{goalSummaries.length > MAX_HOME_GOALS ? ` · ดูทั้งหมด (${goalSummaries.length})` : ''} →
+            จัดการ{goalSummaries.length > MAX_HOME_GOALS ? ` · ดูทั้งหมด (${goalSummaries.length})` : ''}
           </Link>
         </div>
       </div>

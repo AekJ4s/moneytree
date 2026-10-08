@@ -35,7 +35,7 @@ export function PayeesPage() {
       <input className="input" placeholder="ค้นหาผู้รับ…" value={query} onChange={(e) => setQuery(e.target.value)} />
       <ErrorText>{data.error ?? error}</ErrorText>
       {!data.loading && filtered.length === 0 && (
-        <p className="py-6 text-center text-sm text-slate-400">ยังไม่มีผู้รับ — จะถูกสร้างอัตโนมัติเมื่อบันทึกรายการ</p>
+        <p className="py-6 text-center text-sm text-slate-400">ยังไม่มีผู้รับ ระบบจะสร้างให้เองเมื่อบันทึกรายการ</p>
       )}
       <div className="grid gap-3 md:grid-cols-2">
         {filtered.map((p) => (

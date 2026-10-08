@@ -20,11 +20,11 @@
 QR บนสลิปธนาคารไทย (mini-QR สำหรับตรวจสอบสลิป) มีแค่ **รหัสธนาคาร + เลขอ้างอิงรายการ** ซึ่งไม่ซ้ำกันทุกครั้ง
 จึงใช้กันบันทึกซ้ำได้ แต่ระบุร้านไม่ได้ ระบบจึงจับคู่ผู้รับด้วย 2 วิธี:
 
-1. **PromptPay / Thai QR ของร้าน** — ถ้ารูปมี QR รับเงินของร้าน (tag 29/30) จะจำเลข PromptPay/Biller ID ไว้ (แม่นยำ 100%)
-2. **ข้อความบนสลิป (OCR)** — ครั้งแรกกรอกชื่อผู้รับเองและเลือกบรรทัดชื่อผู้รับบนสลิปเป็น "คำค้น"
+1. **PromptPay / Thai QR ของร้าน:** ถ้ารูปมี QR รับเงินของร้าน (tag 29/30) จะจำเลข PromptPay/Biller ID ไว้ (แม่นยำ 100%)
+2. **ข้อความบนสลิป (OCR):** ครั้งแรกกรอกชื่อผู้รับเองและเลือกบรรทัดชื่อผู้รับบนสลิปเป็น "คำค้น"
    ครั้งต่อไปสลิปที่มีข้อความนี้จะเด้งว่าแมปเข้าผู้รับนั้นให้เลย
 
-OCR ทำงานในเบราว์เซอร์ (tesseract.js) — ครั้งแรกจะโหลดไฟล์ภาษาไทยประมาณไม่กี่ MB แล้ว cache ไว้
+OCR ทำงานในเบราว์เซอร์ (tesseract.js) ครั้งแรกจะโหลดไฟล์ภาษาไทยขนาดไม่กี่ MB แล้ว cache ไว้
 
 ## Development
 
@@ -34,7 +34,7 @@ npm install
 npm run dev
 ```
 
-`npm test` — unit tests (parser QR/OCR/matching) · `npm run build` — typecheck + build
+`npm test` รัน unit tests (parser QR/OCR/matching) · `npm run build` typecheck แล้ว build
 
 ## Database
 
@@ -44,4 +44,4 @@ Migration อยู่ใน `supabase/migrations/` (apply แล้วบนโ
 ## Login
 
 หน้า Login ล็อกชื่อผู้ใช้ไว้ที่ `Jasdakorn` ตรวจรหัสผ่านผ่าน Supabase Auth
-(บัญชีจริงคือ email ใน `VITE_OWNER_EMAIL`) — รหัสผ่านไม่ได้อยู่ในโค้ด
+(บัญชีจริงคือ email ใน `VITE_OWNER_EMAIL`) รหัสผ่านไม่ได้อยู่ในโค้ด

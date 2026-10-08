@@ -26,7 +26,7 @@ export function LoginPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4">
-      <form onSubmit={onSubmit} className="w-full max-w-sm space-y-4 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+      <form onSubmit={onSubmit} className="w-full max-w-sm space-y-4 overflow-hidden rounded-lg border border-slate-200 bg-page p-6">
         <div className="text-center">
           <div className="text-3xl">🌳</div>
           <h1 className="mt-1 text-xl font-semibold text-emerald-700">MoneyTree</h1>

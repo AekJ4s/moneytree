@@ -143,7 +143,7 @@ export function CreditorForm({ initial, initialLogoUrl, existingNames, onSaved }
         </label>
       </div>
       <p className="text-xs text-slate-500">
-        วงเงินรวมใช้ร่วมกันทุกก้อนของเจ้าหนี้นี้ (บัตร เงินหมุน และผ่อน) — ระบบคำนวณวงเงินคงเหลือให้ · เว้นว่างได้
+        วงเงินรวมที่ทุกก้อนของเจ้าหนี้นี้ใช้ร่วมกัน (บัตร เงินหมุน และผ่อน) ระบบจะคำนวณวงเงินคงเหลือให้ ถ้าไม่มีเว้นว่างไว้ได้
       </p>
 
       {logo && !file && !isBundledLogo(logo) && !preview && <p className="text-xs text-slate-500">ใช้โลโก้ที่อัปโหลดไว้เดิม</p>}

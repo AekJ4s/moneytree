@@ -192,7 +192,7 @@ export function TransactionForm({
           onChange={(e) => onPayeeChange(e.target.value)}
           placeholder="เช่น ร้านข้าว, บริษัท"
         />
-        {autofilled && <span className="mt-1 block text-xs text-emerald-700">✨ เติมยอด/หมวด/วิธีจ่ายตามครั้งล่าสุดให้แล้ว — แก้ได้</span>}
+        {autofilled && <span className="mt-1 block text-xs text-emerald-700">เติมยอด/หมวด/วิธีจ่ายตามครั้งล่าสุดให้แล้ว แก้ได้ตามต้องการ</span>}
       </label>
       <label className="block">
         <span className="text-sm text-slate-600">หมวดหมู่</span>
@@ -245,14 +245,14 @@ export function TransactionForm({
           </select>
           {cardId && (
             <span className="mt-1 block text-xs text-slate-500">
-              นับเป็นรายจ่ายวันนี้ แต่เงินในบัญชียังไม่ลด — ยอดนี้ไปอยู่ใน “รอจ่าย” ของบัตรจนกว่าจะจ่ายบิล
+              นับเป็นรายจ่ายวันนี้ แต่เงินในบัญชียังไม่ลด ยอดนี้จะไปอยู่ใน “รอจ่าย” ของบัตรจนกว่าจะจ่ายบิล
             </span>
           )}
           <CardBillingHint card={creditors.find((c) => c.id === cardId)} date={date} />
         </label>
       )}
       {initial?.recurring_id ? (
-        <p className="text-xs text-slate-500">🔁 รายการนี้เป็นรายการประจำแล้ว — แก้รอบ/ยอดได้ที่หน้ารายการประจำ</p>
+        <p className="text-xs text-slate-500">🔁 รายการนี้เป็นรายการประจำแล้ว แก้รอบ/ยอดได้ที่หน้ารายการประจำ</p>
       ) : (
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={makeRecurring} onChange={(e) => setMakeRecurring(e.target.checked)} />

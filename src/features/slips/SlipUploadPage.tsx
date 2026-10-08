@@ -71,7 +71,7 @@ export function SlipUploadPage() {
           });
         } catch (err) {
           console.error(err);
-          update(next.key, { status: 'ready', error: `อ่านรูปไม่สำเร็จ: ${errorMessage(err)} — กรอกข้อมูลเองได้` });
+          update(next.key, { status: 'ready', error: `อ่านรูปไม่สำเร็จ: ${errorMessage(err)} (กรอกข้อมูลเองได้)` });
         }
       }
     } finally {
@@ -187,7 +187,7 @@ export function SlipUploadPage() {
     }
 
     setSaving(false);
-    if (failures > 0) setSaveError(`บันทึกไม่สำเร็จ ${failures} รายการ — ตรวจสอบรายการที่มีข้อความสีแดง`);
+    if (failures > 0) setSaveError(`บันทึกไม่สำเร็จ ${failures} รายการ ตรวจสอบรายการที่มีข้อความสีแดง`);
     lookups.reload();
   }
 
@@ -358,7 +358,7 @@ function SlipCard({ draft: d, payees, onChange, onRemove, onView }: CardProps) {
                 <label className="flex items-center gap-2">
                   <input type="checkbox" checked={d.remember} onChange={(e) => onChange({ remember: e.target.checked })} />
                   <span>
-                    จำไว้ — ครั้งหน้าสลิปที่ตรงกันจะแมปเข้า <b>{d.payeeName}</b>
+                    จำไว้: ครั้งหน้าสลิปที่ตรงกันจะแมปเข้า <b>{d.payeeName}</b>
                     {!isKnownPayee && ' (ผู้รับใหม่)'}
                   </span>
                 </label>
@@ -426,6 +426,6 @@ function StatusBadge({ draft: d }: { draft: SlipDraft }) {
             ✓ แมปอัตโนมัติ → {d.payeeName} ({d.matchedVia === 'promptpay' ? 'PromptPay' : 'ข้อความบนสลิป'})
           </span>
         );
-      return <span className={`${base} bg-amber-100 text-amber-800`}>รายการใหม่ — กรอกผู้รับเอง</span>;
+      return <span className={`${base} bg-amber-100 text-amber-800`}>รายการใหม่ · กรอกผู้รับเอง</span>;
   }
 }

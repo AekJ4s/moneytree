@@ -22,7 +22,7 @@ export async function fetchGoogleSheet(url: string): Promise<CellValue[][]> {
   const res = await fetch(endpoint);
   const body = await res.text();
   if (!res.ok || !(res.headers.get('content-type') ?? '').includes('text/csv')) {
-    throw new Error('ดึงข้อมูลไม่ได้ — ตรวจว่าแชร์ลิงก์แบบ "ทุกคนที่มีลิงก์ดูได้" และมีแท็บชื่อ "รายการ"');
+    throw new Error('ดึงข้อมูลไม่ได้ ให้ตรวจว่าแชร์ลิงก์แบบ "ทุกคนที่มีลิงก์ดูได้" และมีแท็บชื่อ "รายการ"');
   }
   return parseCsv(body);
 }

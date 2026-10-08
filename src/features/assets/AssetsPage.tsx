@@ -108,7 +108,7 @@ export function AssetsPage() {
           </button>
         </div>
         {goalSummaries.length === 0 ? (
-          <p className="rounded-xl bg-amber-50 p-3 text-sm text-slate-600">ยังไม่มีเป้าหมาย — สร้างเป้าหมาย แล้วลากที่เก็บเงินด้านล่างไปวางบนเป้าหมาย</p>
+          <p className="rounded-xl bg-amber-50 p-3 text-sm text-slate-600">ยังไม่มีเป้าหมาย สร้างเป้าหมายก่อน แล้วลากที่เก็บเงินด้านล่างไปวางบนเป้าหมาย</p>
         ) : (
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
             {goalSummaries.map((g) => (
@@ -186,7 +186,7 @@ export function AssetsPage() {
           </button>
         ))}
         {!data.loading && summaries.length === 0 && (
-          <p className="py-6 text-center text-sm text-slate-400 sm:col-span-2">ยังไม่มีที่เก็บเงิน — เพิ่ม เช่น Dime, ทองคำ, เงินสด</p>
+          <p className="py-6 text-center text-sm text-slate-400 sm:col-span-2">ยังไม่มีที่เก็บเงิน เพิ่มได้ เช่น Dime ทองคำ หรือเงินสด</p>
         )}
       </div>
       {summaries.length > 1 && <p className="text-xs text-slate-400">ลากการ์ดที่เก็บหนึ่งไปวางบนอีกที่ เพื่อย้ายเงินระหว่างกันได้</p>}
@@ -355,7 +355,7 @@ function MoveForm({ assets, summaries, walletAmount, initialFrom, initialTo, onS
         </label>
       </div>
       <input className="input" placeholder="หมายเหตุ" value={note} onChange={(e) => setNote(e.target.value)} />
-      <p className="text-xs text-slate-500">ย้ายเงินระหว่างที่เก็บ — ไม่กระทบเงินในบัญชีและไม่นับเป็นรายรับ/รายจ่าย</p>
+      <p className="text-xs text-slate-500">การย้ายเงินระหว่างที่เก็บไม่กระทบเงินในบัญชี และไม่นับเป็นรายรับ/รายจ่าย</p>
       <ErrorText>{error}</ErrorText>
       <button className="btn-primary w-full bg-amber-500 hover:bg-amber-600" disabled={busy}>
         {busy ? 'กำลังย้าย…' : 'ย้ายเงิน'}
@@ -517,7 +517,7 @@ function AssetForm({
           </label>
         </div>
         <p className="mt-1 text-xs text-slate-600">
-          เงินที่อยู่ในที่เก็บนี้ก่อนเริ่มบันทึก — นับเป็นเงินต้น ไม่หักจากเงินในบัญชี และไม่นับเป็นกำไร
+          เงินที่อยู่ในที่เก็บนี้ก่อนเริ่มบันทึก นับเป็นเงินต้น ไม่หักจากเงินในบัญชี และไม่นับเป็นกำไร
         </p>
       </div>
 
@@ -601,7 +601,7 @@ function AssetDetail({ summary: s, existing, goals, images, flows, valuations, o
         }}
       >
         <div className="text-sm font-medium">อัปเดตมูลค่าตลาดวันนี้</div>
-        <p className="text-xs text-slate-500">เช่น มูลค่าพอร์ตใน Dime หรือราคาทองตอนนี้ — ใช้คำนวณกำไร/ขาดทุน</p>
+        <p className="text-xs text-slate-500">ใช้คำนวณกำไร/ขาดทุน เช่น มูลค่าพอร์ตใน Dime หรือราคาทองตอนนี้</p>
         <div className="mt-2 flex gap-2">
           <input className="input" inputMode="decimal" value={value} onChange={(e) => setValue(e.target.value)} placeholder={formatMoney(s.value)} />
           <input className="input w-auto" type="date" value={date} onChange={(e) => setDate(e.target.value)} />

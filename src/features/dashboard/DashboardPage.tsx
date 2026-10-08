@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ErrorText, Modal } from '../../components/Modal';
-import { Stat } from '../../components/Stat';
 import { formatMoney, monthRange, todayIso } from '../../lib/format';
 import { useAsync } from '../../lib/useAsync';
 import { useOnDataChanged } from '../../lib/events';
@@ -57,7 +56,7 @@ export function DashboardPage() {
             + บันทึกรายการ
           </button>
           <Link to="/slips" className="btn-primary">
-            🧾 อัปโหลดสลิป
+            อัปโหลดสลิป
           </Link>
         </div>
       </div>
@@ -65,12 +64,16 @@ export function DashboardPage() {
       <GoalsGrid refreshKey={refreshKey} />
       <BalanceCard refreshKey={refreshKey} />
 
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <Stat label="รายรับเดือนนี้" value={totals.income} tone="income" />
-        <Stat label="รายจ่ายเดือนนี้" value={totals.expense} tone="expense" />
-        <Stat label="ออม/ลงทุนเดือนนี้" value={totals.savings} tone="savings" />
-        <Stat label="คงเหลือ" value={totals.income - totals.expense - totals.savings} tone="net" />
-      </div>
+      <dl className="grid grid-cols-2 overflow-hidden rounded-lg border border-slate-200 bg-page sm:grid-cols-4">
+        <MonthFigure label="รายรับเดือนนี้" value={totals.income} tone="text-emerald-700" />
+        <MonthFigure label="รายจ่ายเดือนนี้" value={totals.expense} tone="text-rose-600" />
+        <MonthFigure label="ออม/ลงทุนเดือนนี้" value={totals.savings} tone="text-amber-600" />
+        <MonthFigure
+          label="คงเหลือเดือนนี้"
+          value={totals.income - totals.expense - totals.savings}
+          tone={totals.income - totals.expense - totals.savings >= 0 ? 'text-slate-900' : 'text-rose-600'}
+        />
+      </dl>
       <ErrorText>{month.error}</ErrorText>
 
       <DueRecurringList
@@ -85,7 +88,7 @@ export function DashboardPage() {
           <div className="mb-1 flex items-baseline justify-between">
             <h2 className="font-semibold">รายการล่าสุด</h2>
             <Link to="/daily" className="text-sm text-emerald-700 hover:underline">
-              ดูรายวัน →
+              ดูรายวัน
             </Link>
           </div>
           <p className="text-xs text-slate-500">
@@ -95,17 +98,17 @@ export function DashboardPage() {
         </section>
 
         <section className="card">
-          <h2 className="mb-3 font-semibold">รายจ่ายตามหมวด (เดือนนี้)</h2>
+          <h2 className="mb-3 font-semibold">รายจ่ายตามหมวดเดือนนี้</h2>
           {topCategories.length === 0 && <p className="py-4 text-center text-sm text-slate-400">ยังไม่มีรายจ่าย</p>}
           <ul className="space-y-2">
             {topCategories.map(([name, value]) => (
               <li key={name}>
                 <div className="flex justify-between text-sm">
                   <span className="truncate">{name}</span>
-                  <span className="tabular-nums text-slate-600">{formatMoney(value)}</span>
+                  <span className="figure text-slate-600">{formatMoney(value)}</span>
                 </div>
-                <div className="mt-1 h-2 rounded-full bg-slate-100">
-                  <div className="h-2 rounded-full bg-rose-400" style={{ width: `${(value / maxCategory) * 100}%` }} />
+                <div className="mt-1 h-1.5 bg-slate-100">
+                  <div className="h-1.5 bg-rose-500" style={{ width: `${(value / maxCategory) * 100}%` }} />
                 </div>
               </li>
             ))}
@@ -124,6 +127,16 @@ export function DashboardPage() {
           />
         </Modal>
       )}
+    </div>
+  );
+}
+
+/** One cell of the month summary strip; cells share hairline borders like a passbook column. */
+function MonthFigure({ label, value, tone }: { label: string; value: number; tone: string }) {
+  return (
+    <div className="border-slate-200 px-3 py-2.5 not-last:border-r max-sm:nth-[2]:border-r-0 max-sm:nth-[-n+2]:border-b">
+      <dt className="text-xs text-slate-500">{label}</dt>
+      <dd className={`figure mt-0.5 text-lg font-medium ${tone}`}>{formatMoney(value)}</dd>
     </div>
   );
 }

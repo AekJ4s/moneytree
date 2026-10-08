@@ -1,33 +1,96 @@
 @import 'tailwindcss';
 
+/*
+ * Passbook palette. The four Tailwind scales the app uses are retuned in place so every page
+ * picks up the same inks: slate = printed navy ink, emerald = the bottle-green cover,
+ * rose = rubber-stamp red, amber = brass for savings.
+ */
 @theme {
-  --font-sans: 'Noto Sans Thai', system-ui, sans-serif;
+  --font-sans: 'IBM Plex Sans Thai', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+  --color-slate-50: #f1f4f3;
+  --color-slate-100: #e4e9ea;
+  --color-slate-200: #cdd5da;
+  --color-slate-300: #aeb9c2;
+  --color-slate-400: #8592a1;
+  --color-slate-500: #5e6b7d;
+  --color-slate-600: #435066;
+  --color-slate-700: #33405a;
+  --color-slate-800: #24304a;
+  --color-slate-900: #18223a;
+  --color-slate-950: #0f1628;
+
+  --color-emerald-50: #eaf3ef;
+  --color-emerald-100: #d2e6dd;
+  --color-emerald-200: #a9cebf;
+  --color-emerald-300: #77b09b;
+  --color-emerald-400: #4a8f78;
+  --color-emerald-500: #2f7660;
+  --color-emerald-600: #22604d;
+  --color-emerald-700: #1d4a3c;
+  --color-emerald-800: #173b30;
+  --color-emerald-900: #122e26;
+
+  --color-rose-50: #fbefed;
+  --color-rose-100: #f5d9d5;
+  --color-rose-200: #ebb3ab;
+  --color-rose-300: #dc877b;
+  --color-rose-400: #cc5f52;
+  --color-rose-500: #bc4638;
+  --color-rose-600: #a83a2d;
+  --color-rose-700: #8c2f25;
+  --color-rose-800: #6f271f;
+  --color-rose-900: #561f19;
+
+  --color-amber-50: #faf4e4;
+  --color-amber-100: #f3e5bf;
+  --color-amber-200: #e8cd88;
+  --color-amber-300: #d9b054;
+  --color-amber-400: #c99a2e;
+  --color-amber-500: #b5851b;
+  --color-amber-600: #9a6b12;
+  --color-amber-700: #7c5410;
+  --color-amber-800: #604111;
+  --color-amber-900: #4b3410;
+
+  --color-paper: #ecf0ee;
+  --color-page: #fcfdfb;
 }
 
 body {
-  @apply bg-slate-50 text-slate-800 antialiased;
+  @apply bg-paper text-slate-800 antialiased;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-emerald-500);
+  outline-offset: 2px;
 }
 
 /* Component classes live in the components layer so utilities on the element can still override them. */
 @layer components {
   .input {
-    @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20;
+    @apply w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20;
   }
   .btn-primary,
   .btn-secondary,
   .btn-danger {
-    @apply inline-flex items-center justify-center gap-1 rounded-lg px-3 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-1 rounded-md px-3 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50;
   }
   .btn-primary {
-    @apply bg-emerald-600 text-white hover:bg-emerald-700;
+    @apply bg-emerald-700 text-white hover:bg-emerald-800;
   }
   .btn-secondary {
-    @apply bg-white text-slate-700 ring-1 ring-slate-300 hover:bg-slate-50;
+    @apply bg-page text-slate-700 ring-1 ring-slate-300 hover:bg-slate-50;
   }
   .btn-danger {
     @apply text-rose-600 hover:bg-rose-50;
   }
   .card {
-    @apply rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200;
+    @apply rounded-lg border border-slate-200 bg-page p-4;
+  }
+  /* Amounts, set like the figures a passbook printer stamps on the page. */
+  .figure {
+    @apply font-mono tabular-nums tracking-tight;
   }
 }

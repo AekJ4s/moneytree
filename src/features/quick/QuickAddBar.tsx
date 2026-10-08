@@ -61,7 +61,7 @@ export function QuickAddBar({ templates, date, onEdit, onSaved }: Props) {
 
   return (
     <div>
-      <div className="mb-1 text-xs text-slate-500">⚡ บันทึกด่วน — แตะเพื่อบันทึกทันที · ✏️ เพื่อแก้ยอดก่อน</div>
+      <div className="mb-1 text-xs text-slate-500">⚡ บันทึกด่วน: แตะเพื่อบันทึกทันที หรือแตะ ✏️ เพื่อแก้ยอดก่อน</div>
       <div className="flex flex-wrap gap-1.5">
         {templates.map((t) => (
           <span

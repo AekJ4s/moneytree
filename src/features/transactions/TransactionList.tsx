@@ -53,7 +53,7 @@ export function TransactionList({ transactions, slipUrls = {}, showDate, onEdit,
                 <div className="truncate text-xs text-slate-500">{meta.join(' · ')}</div>
               </div>
               <div
-                className={`shrink-0 text-right font-semibold tabular-nums ${amountColor(t)}`}
+                className={`figure shrink-0 text-right font-medium ${amountColor(t)}`}
               >
                 {t.type === 'income' ? '+' : '−'}
                 {formatMoney(t.amount)}

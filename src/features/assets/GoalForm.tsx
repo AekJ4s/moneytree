@@ -84,7 +84,7 @@ export function GoalForm({ initial, existingNames, assets = [], images = {}, onS
       {initial && (
         <div>
           <div className="mb-1 text-sm font-medium">ที่เก็บเงินในเป้าหมายนี้</div>
-          {assets.length === 0 && <p className="text-xs text-slate-400">ยังไม่มี — ลากการ์ดที่เก็บเงินมาวางบนเป้าหมายนี้</p>}
+          {assets.length === 0 && <p className="text-xs text-slate-400">ยังไม่มี ลากการ์ดที่เก็บเงินมาวางบนเป้าหมายนี้</p>}
           <ul className="space-y-1">
             {assets.map((a) => (
               <li key={a.asset.id} className="flex items-center gap-2 text-sm">

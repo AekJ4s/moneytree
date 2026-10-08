@@ -151,7 +151,7 @@ export function PayDebtForm({ onSaved }: { onSaved: () => void }) {
         </>
       )}
       <input className="input" placeholder="หมายเหตุ" value={note} onChange={(e) => setNote(e.target.value)} />
-      <p className="text-xs text-slate-500">เงินในบัญชีลดลงและยอดรอจ่ายลดลง — ไม่นับเป็นรายจ่ายซ้ำ (นับไปแล้วตอนใช้จ่าย)</p>
+      <p className="text-xs text-slate-500">เงินในบัญชีและยอดรอจ่ายลดลง โดยไม่นับเป็นรายจ่ายซ้ำ เพราะนับไปแล้วตอนใช้จ่าย</p>
       <ErrorText>{error ?? data.error ?? creditors.error}</ErrorText>
       <button className="btn-primary w-full" disabled={busy || !chosen}>
         {busy ? 'กำลังบันทึก…' : 'บันทึกการชำระ'}

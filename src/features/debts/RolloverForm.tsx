@@ -87,7 +87,7 @@ export function RolloverForm({ debt, entries, onSaved }: Props) {
       </label>
       {debt.borrower ? (
         <p className="rounded-lg bg-violet-50 p-2 text-xs text-violet-800">
-          ดอกเบี้ยของก้อนนี้เป็นของ {debt.borrower} — ดอกเบี้ยที่บันทึกไว้แล้วอยู่ในรอรับแล้ว
+          ดอกเบี้ยของก้อนนี้เป็นของ {debt.borrower} ส่วนที่บันทึกไว้แล้วอยู่ในรอรับ
           {num(interest) > 0 && ` และดอกเบี้ยที่กรอกเพิ่ม ${formatMoney(num(interest))} จะเพิ่มในรอรับ`} · เงินที่เบิกใหม่จะนับว่าโอนให้{' '}
           {debt.borrower} (รอรับเพิ่ม)
         </p>

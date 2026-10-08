@@ -27,7 +27,7 @@ export function BalanceCard({ refreshKey = 0 }: { refreshKey?: number }) {
 
   if (o && !o.configured) {
     return (
-      <section className="card border-l-4 border-emerald-500">
+      <section className="card border-l-4 border-l-emerald-700">
         <h2 className="font-semibold">ตั้งยอดเงินในบัญชี</h2>
         <p className="text-sm text-slate-600">ใส่ยอดเงินรวมทุกบัญชีตอนนี้ครั้งเดียว ระบบจะคำนวณยอดเงินจริงต่อจากนี้ให้</p>
         <button className="btn-primary mt-2" onClick={() => setSetup(true)}>
@@ -38,32 +38,31 @@ export function BalanceCard({ refreshKey = 0 }: { refreshKey?: number }) {
     );
   }
 
+  const projected = o ? projectedBalance(o.cash_balance, receivable, payables.thisMonth) : undefined;
+
   return (
-    <section className="card">
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <Figure label="ยอดเงินจริง" value={o?.cash_balance} tone="text-slate-800" />
-        <Figure label="+ รอรับ" value={receivable} tone="text-emerald-600" />
-        <Figure label="− รอจ่ายเดือนนี้" value={payables.thisMonth} tone="text-rose-600" />
-        <Figure
-          label="ยอดหลังรวมรอรับ/รอจ่าย"
-          value={o ? projectedBalance(o.cash_balance, receivable, payables.thisMonth) : undefined}
-          tone="font-bold text-emerald-700"
-        />
-      </div>
-      <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
-        <span>
-          ยอดตั้งต้น {formatMoney(o?.opening_balance ?? 0)} ณ {o?.opening_date ? formatThaiDate(o.opening_date) : '—'}
-          <button className="ml-2 text-emerald-700 hover:underline" onClick={() => setSetup(true)}>
-            แก้ไข
-          </button>
-        </span>
-        <button className="text-emerald-700 hover:underline" onClick={() => setShowDetail((s) => !s)}>
-          {showDetail ? 'ซ่อนรายละเอียด' : 'ดูรายละเอียดรอรับ / รอจ่าย'}
+    <section className="overflow-hidden rounded-lg border border-slate-200 bg-page">
+      <div className="flex items-baseline justify-between gap-2 border-b border-slate-200 bg-emerald-50/70 px-4 py-2 text-xs text-slate-500">
+        <span>ยอดเงิน ณ {formatThaiDate(today, { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+        <button className="text-emerald-700 hover:underline" onClick={() => setShowDetail((s) => !s)} aria-expanded={showDetail}>
+          {showDetail ? 'ซ่อนรายละเอียด' : 'ดูรายละเอียดรอรับ/รอจ่าย'}
         </button>
       </div>
 
+      <dl className="px-4 text-sm">
+        <LedgerRow label="ยอดเงินจริงในบัญชี" value={o?.cash_balance} />
+        <LedgerRow label="รอรับ" sign="+" value={receivable} tone="text-emerald-700" />
+        <LedgerRow label="รอจ่ายเดือนนี้" sign="−" value={payables.thisMonth} tone="text-rose-600" />
+        <div className="flex flex-wrap items-end justify-between gap-x-3 -mt-px border-t-[3px] border-double border-slate-400 pt-3 pb-4">
+          <dt className="pb-1 text-slate-600">ยอดหลังรวมรอรับ/รอจ่าย</dt>
+          <dd className={`figure ml-auto text-3xl font-semibold sm:text-4xl ${projected !== undefined && projected < 0 ? 'text-rose-600' : 'text-slate-900'}`}>
+            {projected === undefined ? '…' : formatMoney(projected)}
+          </dd>
+        </div>
+      </dl>
+
       {showDetail && (
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-4 border-t border-slate-200 px-4 py-3 sm:grid-cols-2">
           <div>
             <h3 className="mb-1 text-sm font-semibold text-emerald-700">รอรับ</h3>
             {(o?.receivables ?? []).length === 0 && <p className="text-xs text-slate-400">ไม่มี</p>}
@@ -71,14 +70,14 @@ export function BalanceCard({ refreshKey = 0 }: { refreshKey?: number }) {
               {(o?.receivables ?? []).map((r) => (
                 <li key={r.person} className="flex justify-between">
                   <span>👤 {r.person}</span>
-                  <span className="tabular-nums">{formatMoney(r.amount)}</span>
+                  <span className="figure">{formatMoney(r.amount)}</span>
                 </li>
               ))}
             </ul>
           </div>
           <div>
             <h3 className="mb-1 text-sm font-semibold text-rose-600">รอจ่ายเดือนนี้</h3>
-            {dueItems.length === 0 && <p className="text-xs text-slate-400">ไม่มี — จ่ายครบแล้ว</p>}
+            {dueItems.length === 0 && <p className="text-xs text-slate-400">ไม่มี จ่ายครบแล้ว</p>}
             <ul className="space-y-1 text-sm">
               {dueItems.map((p) => (
                 <li key={p.debtId} className="flex justify-between gap-2">
@@ -92,7 +91,7 @@ export function BalanceCard({ refreshKey = 0 }: { refreshKey?: number }) {
                       </span>
                     )}
                   </span>
-                  <span className="shrink-0 tabular-nums">{formatMoney(p.dueThisMonth)}</span>
+                  <span className="figure shrink-0">{formatMoney(p.dueThisMonth)}</span>
                 </li>
               ))}
             </ul>
@@ -102,17 +101,30 @@ export function BalanceCard({ refreshKey = 0 }: { refreshKey?: number }) {
           </div>
         </div>
       )}
+
+      <div className="flex flex-wrap items-center gap-x-2 border-t border-slate-200 px-4 py-2 text-xs text-slate-500">
+        <span>
+          ยอดตั้งต้น {formatMoney(o?.opening_balance ?? 0)} ณ {o?.opening_date ? formatThaiDate(o.opening_date) : '—'}
+        </span>
+        <button className="text-emerald-700 hover:underline" onClick={() => setSetup(true)}>
+          แก้ไข
+        </button>
+      </div>
       <ErrorText>{overview.error ?? debts.error}</ErrorText>
       {setup && <OpeningDialog initial={o ?? undefined} onClose={() => setSetup(false)} onSaved={overview.reload} />}
     </section>
   );
 }
 
-function Figure({ label, value, tone }: { label: string; value: number | undefined; tone: string }) {
+/** One printed line of the balance sum: label on the left, signed figure on the right. */
+function LedgerRow({ label, value, sign, tone = 'text-slate-800' }: { label: string; value: number | undefined; sign?: string; tone?: string }) {
   return (
-    <div className="rounded-xl bg-slate-50 p-2">
-      <div className="text-xs text-slate-500">{label}</div>
-      <div className={`tabular-nums ${tone}`}>{value === undefined ? '…' : formatMoney(value)}</div>
+    <div className="flex items-baseline justify-between gap-3 border-b border-slate-200 py-2.5">
+      <dt className="text-slate-600">{label}</dt>
+      <dd className={`figure text-base ${tone}`}>
+        {sign && <span className="mr-1">{sign}</span>}
+        {value === undefined ? '…' : formatMoney(value)}
+      </dd>
     </div>
   );
 }
