@@ -1,7 +1,7 @@
 import { lazy, Suspense, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../features/auth/AuthProvider';
-import { OWNER_USERNAME } from '../lib/env';
+import { Logo } from './Brand';
 import { Modal } from './Modal';
 import { Toaster } from './Toaster';
 
@@ -17,19 +17,19 @@ interface NavItem {
 }
 
 const NAV: NavItem[] = [
-  { to: '/', label: 'ภาพรวม', short: 'ภาพรวม', icon: 'book', primary: true },
+  { to: '/', label: 'ภาพรวม', short: 'ภาพรวม', icon: 'chart', primary: true },
   { to: '/slips', label: 'อัปโหลดสลิป', short: 'สลิป', icon: 'receipt', primary: true },
   { to: '/daily', label: 'รายวัน', short: 'รายวัน', icon: 'calendar', primary: true },
-  { to: '/assets', label: 'ออม/ลงทุน', short: 'ออม', icon: 'sprout', primary: true },
+  { to: '/assets', label: 'ออม/ลงทุน', short: 'ออม', icon: 'piggy', primary: true },
   { to: '/debts', label: 'หนี้สิน', short: 'หนี้', icon: 'card', primary: true },
   { to: '/recurring', label: 'รายการประจำ', short: 'ประจำ', icon: 'repeat' },
-  { to: '/income', label: 'แหล่งรายได้', short: 'รายได้', icon: 'briefcase' },
+  { to: '/income', label: 'แหล่งรายได้', short: 'รายได้', icon: 'income' },
   { to: '/import', label: 'นำเข้า/ส่งออก', short: 'นำเข้า/ส่งออก', icon: 'import' },
   { to: '/payees', label: 'ผู้รับ/แมป', short: 'แมป', icon: 'tag' },
 ];
 
 function linkClass({ isActive }: { isActive: boolean }) {
-  return `whitespace-nowrap rounded-md px-2.5 py-1.5 text-sm ${isActive ? 'bg-white/15 font-medium text-white' : 'text-emerald-100 hover:bg-white/10 hover:text-white'}`;
+  return `whitespace-nowrap rounded-lg px-2.5 py-1.5 text-sm ${isActive ? 'bg-emerald-50 font-semibold text-emerald-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`;
 }
 
 export function Layout() {
@@ -42,12 +42,11 @@ export function Layout() {
 
   return (
     <div className="min-h-screen pb-20 lg:pb-0">
-      <header className="sticky top-0 z-20 bg-emerald-700 text-white">
+      <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-2.5">
-          <div className="leading-tight whitespace-nowrap">
-            <div className="text-lg font-semibold">MoneyTree</div>
-            <div className="text-xs text-emerald-200">สมุดบัญชีของ {OWNER_USERNAME}</div>
-          </div>
+          <NavLink to="/" className="shrink-0" aria-label="Money Tree หน้าภาพรวม">
+            <Logo />
+          </NavLink>
           <nav className="hidden flex-1 gap-0.5 lg:flex">
             {NAV.map((n) => (
               <NavLink key={n.to} to={n.to} end={n.to === '/'} className={linkClass}>
@@ -56,7 +55,7 @@ export function Layout() {
             ))}
           </nav>
           <button
-            className="ml-auto rounded-md px-3 py-1.5 text-sm text-emerald-100 ring-1 ring-white/30 hover:bg-white/10 hover:text-white lg:ml-0"
+            className="ml-auto rounded-lg px-3 py-1.5 text-sm text-slate-600 ring-1 ring-slate-300 hover:bg-slate-50 hover:text-slate-900 lg:ml-0"
             onClick={() => void signOut()}
           >
             ออกจากระบบ
@@ -71,7 +70,7 @@ export function Layout() {
 
       {/* Record from any page; the page underneath refreshes itself via emitDataChanged. */}
       <button
-        className="fixed right-4 bottom-20 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-700 text-white shadow-lg ring-4 ring-paper transition hover:bg-emerald-800 lg:bottom-6"
+        className="fixed right-4 bottom-20 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-700 text-white shadow-lg shadow-emerald-900/20 ring-4 ring-paper transition hover:bg-emerald-800 lg:bottom-6"
         onClick={() => setEntryOpen(true)}
         aria-label="บันทึกรายการ"
         title="บันทึกรายการ"
@@ -129,16 +128,16 @@ export function Layout() {
   );
 }
 
-type IconName = 'book' | 'receipt' | 'calendar' | 'sprout' | 'card' | 'repeat' | 'briefcase' | 'import' | 'tag' | 'more' | 'plus';
+type IconName = 'chart' | 'receipt' | 'calendar' | 'piggy' | 'card' | 'repeat' | 'income' | 'import' | 'tag' | 'more' | 'plus';
 
 const ICON_PATHS: Record<IconName, string> = {
-  book: 'M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3V4Zm0 13a3 3 0 0 1 3-3h11M9 8h6',
+  chart: 'M4 20h16M6 16v-3m5 3V10m5 6V7m-9 0 4-3 3 2 5-4',
   receipt: 'M6 3h12v18l-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5L6 21V3Zm3 5h6m-6 4h6m-6 4h3',
   calendar: 'M4 6h16v14H4V6Zm0 4h16M8 3v4m8-4v4',
-  sprout: 'M12 21v-9m0 0C12 8 9 5 5 5c0 4 3 7 7 7Zm0 0c0-3 2-6 6-6 0 3-2 6-6 6Z',
-  card: 'M3 6h18v12H3V6Zm0 4h18M7 15h4',
+  piggy: 'M5 11a6 5 0 0 1 6-5h2a6 5 0 0 1 5.5 3H20v4h-1.6A6 5 0 0 1 16 15.6V19h-3v-2h-2v2H8v-3.4A5 5 0 0 1 5 11Zm0 0H3m12-1h.01M10 6.3V5',
+  card: 'M3 6h18v12H3V6Zm0 4h18M15 13.5h3M6 15h4',
   repeat: 'M4 12a6 6 0 0 1 6-6h8m0 0-3-3m3 3-3 3m5 3a6 6 0 0 1-6 6H6m0 0 3 3m-3-3 3-3',
-  briefcase: 'M4 8h16v11H4V8Zm5 0V5h6v3m-11 5h16',
+  income: 'M20 12a8 8 0 1 1-2.3-5.7M20 4v4h-4M12 8v8m0 0-3-3m3 3 3-3',
   import: 'M12 4v11m0 0-4-4m4 4 4-4M5 19h14',
   tag: 'M3 12V4h8l9 9-8 8-9-9Zm5-4.5h.01',
   more: 'M4 7h16M4 12h16M4 17h16',

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Mascot } from '../../components/Brand';
 import { ImageViewer } from '../../components/Modal';
 import { formatMoney, formatThaiDate } from '../../lib/format';
 import { isSavings } from '../../lib/savings';
@@ -16,7 +17,13 @@ const SOURCE_LABEL: Record<TxnSource, string> = { manual: 'บันทึกเ
 
 export function TransactionList({ transactions, slipUrls = {}, showDate, onEdit, onDelete }: Props) {
   const [viewing, setViewing] = useState<string | null>(null);
-  if (transactions.length === 0) return <p className="py-6 text-center text-sm text-slate-400">ไม่มีรายการ</p>;
+  if (transactions.length === 0)
+    return (
+      <div className="flex flex-col items-center gap-2 py-6 text-sm text-slate-500">
+        <Mascot className="h-16 opacity-90" />
+        ไม่มีรายการ
+      </div>
+    );
 
   return (
     <>

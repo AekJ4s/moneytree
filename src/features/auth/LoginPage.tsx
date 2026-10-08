@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Navigate } from 'react-router-dom';
+import { Mascot } from '../../components/Brand';
 import { OWNER_USERNAME } from '../../lib/env';
 import { useAuth } from './AuthProvider';
 
@@ -26,10 +27,10 @@ export function LoginPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4">
-      <form onSubmit={onSubmit} className="w-full max-w-sm space-y-4 overflow-hidden rounded-lg border border-slate-200 bg-page p-6">
+      <form onSubmit={onSubmit} className="w-full max-w-sm space-y-4 rounded-2xl border border-slate-200 bg-page p-6">
         <div className="text-center">
-          <div className="text-3xl">🌳</div>
-          <h1 className="mt-1 text-xl font-semibold text-emerald-700">MoneyTree</h1>
+          <Mascot className="mx-auto h-28" />
+          <h1 className="mt-3 text-2xl font-bold tracking-tight text-slate-900">Money Tree</h1>
           <p className="text-sm text-slate-500">บันทึกการเงินส่วนตัว</p>
         </div>
         <label className="block">
