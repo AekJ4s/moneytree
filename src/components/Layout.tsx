@@ -24,7 +24,7 @@ const NAV: NavItem[] = [
   { to: '/debts', label: 'หนี้สิน', short: 'หนี้', icon: 'card', primary: true },
   { to: '/recurring', label: 'รายการประจำ', short: 'ประจำ', icon: 'repeat' },
   { to: '/income', label: 'แหล่งรายได้', short: 'รายได้', icon: 'briefcase' },
-  { to: '/import', label: 'นำเข้า', short: 'นำเข้า', icon: 'import' },
+  { to: '/import', label: 'นำเข้า/ส่งออก', short: 'นำเข้า/ส่งออก', icon: 'import' },
   { to: '/payees', label: 'ผู้รับ/แมป', short: 'แมป', icon: 'tag' },
 ];
 

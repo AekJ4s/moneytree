@@ -16,6 +16,28 @@ export async function listTransactions(from: string, to: string): Promise<Transa
   );
 }
 
+const PAGE_SIZE = 1000;
+
+/** Every transaction in the range, oldest first; pages past the API's 1,000-row cap for long exports. */
+export async function listAllTransactions(from: string, to: string): Promise<Transaction[]> {
+  const all: Transaction[] = [];
+  for (let offset = 0; ; offset += PAGE_SIZE) {
+    const page: Transaction[] = unwrap(
+      await supabase
+        .from('transactions')
+        .select(SELECT_WITH_PAYEE)
+        .gte('txn_date', from)
+        .lte('txn_date', to)
+        .order('txn_date')
+        .order('created_at')
+        .order('id')
+        .range(offset, offset + PAGE_SIZE - 1),
+    );
+    all.push(...page);
+    if (page.length < PAGE_SIZE) return all;
+  }
+}
+
 export async function createTransaction(txn: Partial<NewTransaction> & Pick<NewTransaction, 'type' | 'amount' | 'txn_date'>): Promise<Transaction> {
   return unwrap(await supabase.from('transactions').insert(txn).select(SELECT_WITH_PAYEE).single());
 }

@@ -1,8 +1,10 @@
 import { useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { ErrorText } from '../../components/Modal';
+import { downloadText } from '../../lib/download';
 import { formatMoney, formatThaiDate } from '../../lib/format';
 import { errorMessage } from '../../lib/useAsync';
+import { ExportPanel } from '../export/ExportPanel';
 import { findImportedKeys, insertImported, listNonImportedInRange } from './api';
 import { classifyRows, toImportTransaction, type PreviewRow } from './importPreview';
 import { fetchGoogleSheet, readSheetFile } from './loadSheet';
@@ -38,12 +40,7 @@ function saveLastLink(link: string) {
 
 function downloadTemplate() {
   const csv = `﻿${TEMPLATE_HEADER.join(',')}\n01/10/2026,รายจ่าย,อาหาร,ข้าวกะเพรา,60,ธนาคาร,\n`;
-  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'moneytree-template.csv';
-  a.click();
-  URL.revokeObjectURL(url);
+  downloadText('moneytree-template.csv', csv);
 }
 
 export function ImportPage() {
@@ -132,8 +129,11 @@ export function ImportPage() {
 
   return (
     <div className="space-y-4">
+      <h1 className="text-xl font-semibold">นำเข้า/ส่งออก</h1>
+      <ExportPanel />
+
       <div>
-        <h1 className="text-xl font-semibold">นำเข้าจาก Excel / Google Sheets</h1>
+        <h2 className="text-lg font-semibold">นำเข้าจาก Excel / Google Sheets</h2>
         <p className="text-sm text-slate-500">
           อ่านแท็บ “{TEMPLATE_SHEET_NAME}” (วันที่ · ประเภท · หมวดหมู่ · รายละเอียด · จำนวนเงิน · บัญชี/ช่องทาง · หมายเหตุ)
           นำเข้าไฟล์เดิมซ้ำได้ ระบบจะเพิ่มเฉพาะแถวใหม่
