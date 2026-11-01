@@ -1,7 +1,6 @@
 import imageCompression from 'browser-image-compression';
 import { check, supabase, unwrap } from '../../lib/supabase';
-import type { ScheduleRow } from './debtMath';
-import type { Creditor, Debt, DebtEntry, DebtEntryKind, DebtInput, DebtInstallment } from './types';
+import type { Creditor, DebtPayment } from './types';
 
 export const CREDITOR_LOGO_BUCKET = 'creditor-logos';
 
@@ -24,10 +23,6 @@ export async function listCreditors(): Promise<Creditor[]> {
   return unwrap(await supabase.from('creditors').select('*').order('sort_order').order('name'));
 }
 
-export async function getCreditor(id: string): Promise<Creditor> {
-  return unwrap(await supabase.from('creditors').select('*').eq('id', id).single());
-}
-
 export async function createCreditor(input: CreditorInput): Promise<Creditor> {
   const count = unwrap(await supabase.from('creditors').select('id')).length;
   return unwrap(
@@ -39,17 +34,8 @@ export async function createCreditor(input: CreditorInput): Promise<Creditor> {
   );
 }
 
-/** Updates a creditor; its own revolving balances follow the creditor's statement/due days. */
-export async function updateCreditor(id: string, input: CreditorInput): Promise<void> {
-  check(await supabase.from('creditors').update({ ...input, name: input.name.trim() }).eq('id', id));
-  check(
-    await supabase
-      .from('debts')
-      .update({ statement_day: input.statement_day, due_day: input.due_day })
-      .eq('creditor_id', id)
-      .eq('kind', 'revolving')
-      .is('borrower', null),
-  );
+export async function updateCreditor(id: string, input: Partial<CreditorInput>): Promise<void> {
+  check(await supabase.from('creditors').update(input.name ? { ...input, name: input.name.trim() } : input).eq('id', id));
 }
 
 export async function deleteCreditor(creditor: Creditor): Promise<void> {
@@ -80,136 +66,27 @@ export async function signLogoUrls(paths: string[]): Promise<Record<string, stri
   return out;
 }
 
-// ---- debts ----
+// ---- payments ----
 
-export interface DebtData {
-  debts: Debt[];
-  installments: DebtInstallment[];
-  entries: DebtEntry[];
+export type CreditorInput = Pick<
+  Creditor,
+  'name' | 'logo' | 'balance' | 'min_payment' | 'min_payment_percent' | 'balance_updated_on' | 'credit_limit' | 'statement_day' | 'due_day'
+>;
+
+/** Debt payments, newest first (optionally only from `since`). */
+export async function listDebtPayments(since?: string): Promise<DebtPayment[]> {
+  let q = supabase.from('debt_payments').select('*').order('paid_on', { ascending: false }).order('created_at', { ascending: false });
+  if (since) q = q.gte('paid_on', since);
+  const rows = unwrap(await q) as DebtPayment[];
+  return rows.map((r) => ({ ...r, amount: Number(r.amount) }));
 }
 
-/** All debts (optionally of one creditor) with their schedules and entries. */
-export async function loadDebtData(creditorId?: string): Promise<DebtData> {
-  let debtQuery = supabase.from('debts').select('*').order('created_at');
-  if (creditorId) debtQuery = debtQuery.eq('creditor_id', creditorId);
-  const debts = unwrap(await debtQuery) as Debt[];
-  const ids = debts.map((d) => d.id);
-  if (ids.length === 0) return { debts, installments: [], entries: [] };
-  const [installments, entries] = await Promise.all([
-    supabase.from('debt_installments').select('*').in('debt_id', ids).order('seq'),
-    supabase.from('debt_entries').select('*').in('debt_id', ids).order('entry_date', { ascending: false }),
-  ]);
-  return { debts, installments: unwrap(installments), entries: unwrap(entries) };
+/** Records a payment: money leaves the account and the creditor's balance goes down (atomic). */
+export async function payDebt(creditorId: string, amount: number, date: string, note: string | null): Promise<void> {
+  check(await supabase.rpc('pay_debt', { p_creditor_id: creditorId, p_amount: amount, p_date: date, p_note: note }));
 }
 
-async function insertSchedule(debtId: string, rows: ScheduleRow[]): Promise<void> {
-  if (rows.length === 0) return;
-  check(await supabase.from('debt_installments').insert(rows.map((r) => ({ ...r, debt_id: debtId }))));
-}
-
-export async function createDebt(input: DebtInput, schedule: ScheduleRow[]): Promise<Debt> {
-  const debt = unwrap(await supabase.from('debts').insert(input).select().single()) as Debt;
-  try {
-    await insertSchedule(debt.id, schedule);
-  } catch (err) {
-    // Keep data consistent: a debt without its schedule would show wrong balances.
-    await supabase.from('debts').delete().eq('id', debt.id);
-    throw err;
-  }
-  return debt;
-}
-
-export async function updateDebt(id: string, patch: Partial<DebtInput>): Promise<void> {
-  check(await supabase.from('debts').update(patch).eq('id', id));
-}
-
-/** Replaces the schedule; only allowed by the UI while no installment has been paid. */
-export async function replaceSchedule(debtId: string, rows: ScheduleRow[]): Promise<void> {
-  check(await supabase.from('debt_installments').delete().eq('debt_id', debtId));
-  await insertSchedule(debtId, rows);
-}
-
-export async function deleteDebt(id: string): Promise<void> {
-  check(await supabase.from('debts').delete().eq('id', id));
-}
-
-export type InstallmentPatch = Partial<Pick<DebtInstallment, 'interest' | 'principal' | 'due_date' | 'confirmed'>>;
-
-export async function updateInstallment(id: string, patch: InstallmentPatch): Promise<void> {
-  check(await supabase.from('debt_installments').update(patch).eq('id', id));
-}
-
-/** Applies several row updates (e.g. after rebalancing a fixed-payment schedule). */
-export async function updateInstallments(changes: { id: string; patch: InstallmentPatch }[]): Promise<void> {
-  await Promise.all(changes.map((c) => updateInstallment(c.id, c.patch)));
-}
-
-export interface EntryInput {
-  debtId: string;
-  kind: DebtEntryKind;
-  amount: number;
-  date: string;
-  note: string | null;
-  installmentId: string | null;
-  recordExpense: boolean;
-}
-
-export async function addDebtEntry(e: EntryInput): Promise<void> {
-  check(
-    await supabase.rpc('add_debt_entry', {
-      p_debt_id: e.debtId,
-      p_kind: e.kind,
-      p_amount: e.amount,
-      p_date: e.date,
-      p_note: e.note,
-      p_installment_id: e.installmentId,
-      p_record_expense: e.recordExpense,
-    }),
-  );
-}
-
-export async function deleteDebtEntry(id: string): Promise<void> {
-  check(await supabase.rpc('delete_debt_entry', { p_entry_id: id }));
-}
-
-/** Pays a revolving balance in full and draws it again in one atomic step (see rollover_revolving). */
-export async function rolloverRevolving(input: {
-  debtId: string;
-  date: string;
-  interest: number;
-  redraw: number;
-  /** Interest to book: my expense, or for someone else's portion, added to what they owe me. */
-  bookInterest: number;
-}): Promise<void> {
-  check(
-    await supabase.rpc('rollover_revolving', {
-      p_debt_id: input.debtId,
-      p_date: input.date,
-      p_interest: input.interest,
-      p_redraw: input.redraw,
-      p_book_interest: input.bookInterest,
-    }),
-  );
-}
-
-export type CreditorInput = Pick<Creditor, 'name' | 'logo' | 'credit_limit' | 'statement_day' | 'due_day'>;
-
-/** Marks installments as paid on their due dates; already-paid ones are skipped. Returns how many were marked. */
-export async function markInstallmentsPaid(installmentIds: string[], recordInterest: boolean): Promise<number> {
-  if (installmentIds.length === 0) return 0;
-  return unwrap(
-    await supabase.rpc('mark_installments_paid', { p_installment_ids: installmentIds, p_record_interest: recordInterest }),
-  ) as number;
-}
-
-/** For a debt added late: marks its first `count` installments as paid on their due dates. */
-export async function markFirstInstallmentsPaid(debtId: string, count: number, recordInterest: boolean): Promise<number> {
-  if (count <= 0) return 0;
-  const rows = unwrap(
-    await supabase.from('debt_installments').select('id').eq('debt_id', debtId).order('seq').limit(count),
-  ) as { id: string }[];
-  return markInstallmentsPaid(
-    rows.map((r) => r.id),
-    recordInterest,
-  );
+/** Undoes a payment and adds the amount back to the balance. */
+export async function deleteDebtPayment(id: string): Promise<void> {
+  check(await supabase.rpc('delete_debt_payment', { p_payment_id: id }));
 }

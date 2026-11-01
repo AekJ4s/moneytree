@@ -2,8 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { ErrorText, Modal } from '../../components/Modal';
 import { formatMoney, formatThaiDate, todayIso } from '../../lib/format';
 import { errorMessage, useAsync } from '../../lib/useAsync';
-import { listCreditors, loadDebtData } from '../debts/api';
-import { summarizeAll } from '../debts/debtMath';
+import { listCreditors, listDebtPayments } from '../debts/api';
 import { getBalanceOverview, saveOpeningBalance } from './api';
 import { buildPayables, projectedBalance } from './payables';
 
@@ -14,15 +13,12 @@ import { buildPayables, projectedBalance } from './payables';
 export function BalanceCard({ refreshKey = 0 }: { refreshKey?: number }) {
   const today = todayIso();
   const overview = useAsync(getBalanceOverview, [refreshKey]);
-  const debts = useAsync(() => Promise.all([loadDebtData(), listCreditors()]), [refreshKey]);
+  const debts = useAsync(() => Promise.all([listCreditors(), listDebtPayments(`${today.slice(0, 7)}-01`)]), [refreshKey]);
   const [setup, setSetup] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
 
   const o = overview.data;
-  const payables = debts.data
-    ? buildPayables(summarizeAll(debts.data[0], today), debts.data[1])
-    : { items: [], thisMonth: 0, nextMonth: 0, totalOwed: 0 };
-  const dueItems = payables.items.filter((p) => p.dueThisMonth > 0);
+  const payables = buildPayables(debts.data?.[0] ?? [], debts.data?.[1] ?? [], today);
   const receivable = (o?.receivables ?? []).reduce((s, r) => s + r.amount, 0);
 
   if (o && !o.configured) {
@@ -38,7 +34,7 @@ export function BalanceCard({ refreshKey = 0 }: { refreshKey?: number }) {
     );
   }
 
-  const projected = o ? projectedBalance(o.cash_balance, receivable, payables.thisMonth) : undefined;
+  const projected = o ? projectedBalance(o.cash_balance, receivable, payables.remaining) : undefined;
 
   return (
     <section className="overflow-hidden rounded-lg border border-slate-200 bg-page">
@@ -52,7 +48,7 @@ export function BalanceCard({ refreshKey = 0 }: { refreshKey?: number }) {
       <dl className="px-4 text-sm">
         <LedgerRow label="ยอดเงินจริงในบัญชี" value={o?.cash_balance} />
         <LedgerRow label="รอรับ" sign="+" value={receivable} tone="text-emerald-700" />
-        <LedgerRow label="รอจ่ายเดือนนี้" sign="−" value={payables.thisMonth} tone="text-rose-600" />
+        <LedgerRow label="รอจ่ายเดือนนี้" sign="−" value={payables.remaining} tone="text-rose-600" />
         <div className="flex flex-wrap items-end justify-between gap-x-3 -mt-px border-t-[3px] border-double border-slate-400 pt-3 pb-4">
           <dt className="pb-1 text-slate-600">ยอดหลังรวมรอรับ/รอจ่าย</dt>
           <dd className={`figure ml-auto text-3xl font-semibold sm:text-4xl ${projected !== undefined && projected < 0 ? 'text-rose-600' : 'text-slate-900'}`}>
@@ -77,27 +73,24 @@ export function BalanceCard({ refreshKey = 0 }: { refreshKey?: number }) {
           </div>
           <div>
             <h3 className="mb-1 text-sm font-semibold text-rose-600">รอจ่ายเดือนนี้</h3>
-            {dueItems.length === 0 && <p className="text-xs text-slate-400">ไม่มี จ่ายครบแล้ว</p>}
+            {payables.due.length === 0 && <p className="text-xs text-slate-400">ไม่มี จ่ายขั้นต่ำครบแล้ว</p>}
             <ul className="space-y-1 text-sm">
-              {dueItems.map((p) => (
-                <li key={p.debtId} className="flex justify-between gap-2">
+              {payables.due.map((p) => (
+                <li key={p.creditor.id} className="flex justify-between gap-2">
                   <span className="min-w-0 truncate">
-                    {p.label}
-                    {p.borrower && ` (👤 ${p.borrower})`}
-                    {p.next && (
+                    {p.creditor.name} <span className="text-xs text-slate-500">(ขั้นต่ำ)</span>
+                    {p.dueDate && (
                       <span className={`block text-xs ${p.overdue ? 'text-rose-600' : 'text-slate-500'}`}>
                         {p.overdue ? 'เลยกำหนด ' : 'ครบกำหนด '}
-                        {formatThaiDate(p.next.date, { day: 'numeric', month: 'short' })}
+                        {formatThaiDate(p.dueDate, { day: 'numeric', month: 'short' })}
                       </span>
                     )}
                   </span>
-                  <span className="figure shrink-0">{formatMoney(p.dueThisMonth)}</span>
+                  <span className="figure shrink-0">{formatMoney(p.remaining)}</span>
                 </li>
               ))}
             </ul>
-            <p className="mt-2 text-xs text-slate-500">
-              เดือนหน้า {formatMoney(payables.nextMonth)} · หนี้คงเหลือทั้งหมด {formatMoney(payables.totalOwed)} (ไม่นำมาหัก)
-            </p>
+            <p className="mt-2 text-xs text-slate-500">หนี้รวมทั้งหมด {formatMoney(payables.owed)} (ไม่นำมาหัก)</p>
           </div>
         </div>
       )}

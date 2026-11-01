@@ -17,11 +17,11 @@ export function LogoMark({ className }: { className?: string }) {
   );
 }
 
-export function Logo({ className = '' }: { className?: string }) {
+export function Logo({ className = '', light = false }: { className?: string; light?: boolean }) {
   return (
     <span className={`inline-flex items-center gap-2 ${className}`}>
       <LogoMark className="h-8 w-8" />
-      <span className="text-xl font-bold tracking-tight text-slate-900">Money Tree</span>
+      <span className={`text-xl font-bold tracking-tight ${light ? 'text-white' : 'text-slate-900'}`}>Money Tree</span>
     </span>
   );
 }

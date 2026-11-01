@@ -11,7 +11,6 @@ const DailyPage = lazy(() => import('./features/transactions/DailyPage').then((m
 const RecurringPage = lazy(() => import('./features/recurring/RecurringPage').then((m) => ({ default: m.RecurringPage })));
 const ImportPage = lazy(() => import('./features/import/ImportPage').then((m) => ({ default: m.ImportPage })));
 const DebtsPage = lazy(() => import('./features/debts/DebtsPage').then((m) => ({ default: m.DebtsPage })));
-const CreditorPage = lazy(() => import('./features/debts/CreditorPage').then((m) => ({ default: m.CreditorPage })));
 const AssetsPage = lazy(() => import('./features/assets/AssetsPage').then((m) => ({ default: m.AssetsPage })));
 const IncomePage = lazy(() => import('./features/income/IncomePage').then((m) => ({ default: m.IncomePage })));
 const PayeesPage = lazy(() => import('./features/payees/PayeesPage').then((m) => ({ default: m.PayeesPage })));
@@ -45,7 +44,6 @@ export function App() {
               <Route path="recurring" element={<RecurringPage />} />
               <Route path="import" element={<ImportPage />} />
               <Route path="debts" element={<DebtsPage />} />
-              <Route path="debts/:creditorId" element={<CreditorPage />} />
               <Route path="assets" element={<AssetsPage />} />
               <Route path="income" element={<IncomePage />} />
               <Route path="payees" element={<PayeesPage />} />

@@ -29,7 +29,7 @@ const NAV: NavItem[] = [
 ];
 
 function linkClass({ isActive }: { isActive: boolean }) {
-  return `whitespace-nowrap rounded-lg px-2.5 py-1.5 text-sm ${isActive ? 'bg-emerald-50 font-semibold text-emerald-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`;
+  return `whitespace-nowrap rounded-lg px-2.5 py-1.5 text-sm ${isActive ? 'bg-emerald-500/15 font-semibold text-emerald-300' : 'text-slate-300 hover:bg-white/5 hover:text-white'}`;
 }
 
 export function Layout() {
@@ -42,10 +42,10 @@ export function Layout() {
 
   return (
     <div className="min-h-screen pb-20 lg:pb-0">
-      <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur">
+      <header className="sticky top-0 z-20 border-b border-white/10 bg-night/85 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-2.5">
           <NavLink to="/" className="shrink-0" aria-label="Money Tree หน้าภาพรวม">
-            <Logo />
+            <Logo light />
           </NavLink>
           <nav className="hidden flex-1 gap-0.5 lg:flex">
             {NAV.map((n) => (
@@ -55,7 +55,7 @@ export function Layout() {
             ))}
           </nav>
           <button
-            className="ml-auto rounded-lg px-3 py-1.5 text-sm text-slate-600 ring-1 ring-slate-300 hover:bg-slate-50 hover:text-slate-900 lg:ml-0"
+            className="ml-auto rounded-lg px-3 py-1.5 text-sm text-slate-300 ring-1 ring-white/20 hover:bg-white/5 hover:text-white lg:ml-0"
             onClick={() => void signOut()}
           >
             ออกจากระบบ
@@ -70,7 +70,7 @@ export function Layout() {
 
       {/* Record from any page; the page underneath refreshes itself via emitDataChanged. */}
       <button
-        className="fixed right-4 bottom-20 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-700 text-white shadow-lg shadow-emerald-900/20 ring-4 ring-paper transition hover:bg-emerald-800 lg:bottom-6"
+        className="fixed right-4 bottom-20 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-700 text-white shadow-lg shadow-black/40 ring-4 ring-night transition hover:bg-emerald-800 lg:bottom-6"
         onClick={() => setEntryOpen(true)}
         aria-label="บันทึกรายการ"
         title="บันทึกรายการ"
@@ -102,21 +102,21 @@ export function Layout() {
           </div>
         </div>
       )}
-      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-6 border-t border-slate-200 bg-page lg:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-6 border-t border-white/10 bg-night/95 backdrop-blur lg:hidden">
         {NAV.filter((n) => n.primary).map((n) => (
           <NavLink
             key={n.to}
             to={n.to}
             end={n.to === '/'}
             onClick={() => setMoreOpen(false)}
-            className={({ isActive }) => `flex flex-col items-center gap-0.5 py-2 text-[11px] ${isActive ? 'font-medium text-emerald-700' : 'text-slate-500'}`}
+            className={({ isActive }) => `flex flex-col items-center gap-0.5 py-2 text-[11px] ${isActive ? 'font-medium text-emerald-300' : 'text-slate-400'}`}
           >
             <Icon name={n.icon} className="h-5 w-5" />
             {n.short}
           </NavLink>
         ))}
         <button
-          className={`flex flex-col items-center gap-0.5 py-2 text-[11px] ${secondaryActive || moreOpen ? 'font-medium text-emerald-700' : 'text-slate-500'}`}
+          className={`flex flex-col items-center gap-0.5 py-2 text-[11px] ${secondaryActive || moreOpen ? 'font-medium text-emerald-300' : 'text-slate-400'}`}
           onClick={() => setMoreOpen((o) => !o)}
           aria-expanded={moreOpen}
         >

@@ -1,81 +1,32 @@
-export type DebtKind = 'revolving' | 'installment' | 'paylater';
-export type InterestMode = 'none' | 'annual' | 'monthly' | 'manual';
-export type InterestMethod = 'flat' | 'reducing';
-export type DebtEntryKind = 'payment' | 'charge' | 'interest' | 'fee';
-
+/**
+ * Debts are kept rough on purpose: each creditor has a total owed and a minimum payment,
+ * updated by hand from the bank app. Payments reduce the total and leave the account.
+ */
 export interface Creditor {
   id: string;
   name: string;
   logo: string | null;
   sort_order: number;
-  /** Total credit line (วงเงินรวม) shared by all debts with this creditor. */
+  /** Total owed right now (หนี้รวม). */
+  balance: number;
+  /** Minimum payment in baht; when empty, `min_payment_percent` of the balance is used. */
+  min_payment: number | null;
+  min_payment_percent: number | null;
+  /** When the balance was last set from the bank. */
+  balance_updated_on: string | null;
+  /** Optional credit line, to show what is still available. */
   credit_limit: number | null;
-  /** Card statement cut-off and payment due days. */
+  /** Card statement cut-off day, used to hint which bill a card expense lands on. */
   statement_day: number | null;
   due_day: number | null;
   created_at: string;
 }
 
-export interface Debt {
+export interface DebtPayment {
   id: string;
   creditor_id: string;
-  name: string;
-  kind: DebtKind;
-  principal: number;
-  interest_mode: InterestMode;
-  interest_rate: number | null;
-  interest_method: InterestMethod;
-  term_months: number | null;
-  start_date: string;
-  first_due_date: string | null;
-  due_day: number | null;
-  credit_limit: number | null;
-  min_payment_percent: number | null;
-  /** Fixed payment per installment (bank-style); principal = payment - interest. */
-  installment_amount: number | null;
-  /** Who actually uses this money (null = me), e.g. "แม่". */
-  borrower: string | null;
-  /** Statement cut-off day (วันตัดรอบบัญชี) for cards / credit lines. */
-  statement_day: number | null;
-  closed_on: string | null;
-  note: string | null;
-  created_at: string;
-}
-
-export type DebtInput = Omit<Debt, 'id' | 'created_at'>;
-
-export interface DebtInstallment {
-  id: string;
-  debt_id: string;
-  seq: number;
-  due_date: string;
-  principal: number;
-  interest: number;
-  /** Values come from a statement (not estimated). */
-  confirmed: boolean;
-}
-
-export interface DebtEntry {
-  id: string;
-  debt_id: string;
-  installment_id: string | null;
-  kind: DebtEntryKind;
   amount: number;
-  entry_date: string;
+  paid_on: string;
   note: string | null;
-  transaction_id: string | null;
   created_at: string;
 }
-
-export const KIND_LABEL: Record<DebtKind, string> = {
-  revolving: 'เงินหมุน / บัตรเครดิต',
-  installment: 'ผ่อนชำระ',
-  paylater: 'PayLater',
-};
-
-export const ENTRY_LABEL: Record<DebtEntryKind, string> = {
-  payment: 'ชำระ',
-  charge: 'เบิก/ใช้วงเงิน',
-  interest: 'ดอกเบี้ย',
-  fee: 'ค่าธรรมเนียม',
-};

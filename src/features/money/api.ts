@@ -90,33 +90,20 @@ export interface CashMovement {
   source: 'debt' | 'receivable';
 }
 
-/** Account movements that are not income/expense transactions: debt payments, credit draws, lending. */
+/** Account movements that are not income/expense transactions: debt payments and lending. */
 export async function listCashMovements(from: string, to: string): Promise<CashMovement[]> {
   const [debtRes, recv] = await Promise.all([
-    supabase
-      .from('debt_entries')
-      .select('id, kind, amount, entry_date, note, transaction_id, debt:debts(name, borrower, creditor:creditors(name))')
-      .in('kind', ['payment', 'charge'])
-      .gte('entry_date', from)
-      .lte('entry_date', to),
+    supabase.from('debt_payments').select('id, amount, paid_on, note, creditor:creditors(name)').gte('paid_on', from).lte('paid_on', to),
     listReceivableEntries({ from, to }),
   ]);
-  type DebtRow = {
-    id: string;
-    kind: 'payment' | 'charge';
-    amount: number;
-    entry_date: string;
-    note: string | null;
-    transaction_id: string | null;
-    debt: { name: string; borrower: string | null; creditor: { name: string } | null } | null;
-  };
-  const debtRows = (unwrap(debtRes) as unknown as DebtRow[]).filter((d) => d.kind === 'payment' || !d.transaction_id);
+  type DebtRow = { id: string; amount: number; paid_on: string; note: string | null; creditor: { name: string } | null };
+  const debtRows = unwrap(debtRes) as unknown as DebtRow[];
   return [
     ...debtRows.map((d) => ({
       id: d.id,
-      date: d.entry_date,
-      label: `${d.kind === 'payment' ? 'ชำระ' : 'เบิกวงเงิน'} ${d.debt?.creditor?.name ?? ''} · ${d.debt?.name ?? ''}${d.note ? ` (${d.note})` : ''}`,
-      amount: (d.kind === 'payment' ? -1 : 1) * Number(d.amount),
+      date: d.paid_on,
+      label: `ชำระ ${d.creditor?.name ?? ''}${d.note ? ` (${d.note})` : ''}`,
+      amount: -Number(d.amount),
       source: 'debt' as const,
     })),
     ...recv

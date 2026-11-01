@@ -245,7 +245,7 @@ export function TransactionForm({
           </select>
           {cardId && (
             <span className="mt-1 block text-xs text-slate-500">
-              นับเป็นรายจ่ายวันนี้ แต่เงินในบัญชียังไม่ลด ยอดนี้จะไปอยู่ใน “รอจ่าย” ของบัตรจนกว่าจะจ่ายบิล
+              นับเป็นรายจ่ายวันนี้ แต่เงินในบัญชียังไม่ลด — ตอนบิลมาให้อัปเดตหนี้รวมของบัตรที่หน้าหนี้สิน
             </span>
           )}
           <CardBillingHint card={creditors.find((c) => c.id === cardId)} date={date} />

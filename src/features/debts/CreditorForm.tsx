@@ -1,9 +1,11 @@
 import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
 import { ErrorText } from '../../components/Modal';
+import { formatMoney, todayIso } from '../../lib/format';
 import { errorMessage } from '../../lib/useAsync';
 import { useUserId } from '../auth/AuthProvider';
 import { CREDITOR_PRESETS, createCreditor, isBundledLogo, updateCreditor, uploadCreditorLogo } from './api';
 import { CreditorLogo } from './CreditorLogo';
+import { minimumPayment } from './simpleDebt';
 import type { Creditor } from './types';
 
 interface Props {
@@ -11,6 +13,12 @@ interface Props {
   initialLogoUrl?: string | null;
   existingNames: string[];
   onSaved: (creditor?: Creditor) => void;
+}
+
+/** Parses an optional money/number field; empty means not set. */
+function num(value: string): number | null {
+  const n = Number(value.replace(/,/g, ''));
+  return value.trim() && Number.isFinite(n) ? n : null;
 }
 
 export function CreditorForm({ initial, initialLogoUrl, existingNames, onSaved }: Props) {
@@ -21,6 +29,9 @@ export function CreditorForm({ initial, initialLogoUrl, existingNames, onSaved }
   const [creditLimit, setCreditLimit] = useState(initial?.credit_limit != null ? String(initial.credit_limit) : '');
   const [statementDay, setStatementDay] = useState(initial?.statement_day ? String(initial.statement_day) : '');
   const [dueDay, setDueDay] = useState(initial?.due_day ? String(initial.due_day) : '');
+  const [balance, setBalance] = useState(initial ? String(initial.balance) : '');
+  const [minAmount, setMinAmount] = useState(initial?.min_payment != null ? String(initial.min_payment) : '');
+  const [minPercent, setMinPercent] = useState(initial?.min_payment_percent != null ? String(initial.min_payment_percent) : '');
   const [preview, setPreview] = useState<string | null>(initialLogoUrl ?? null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -56,10 +67,17 @@ export function CreditorForm({ initial, initialLogoUrl, existingNames, onSaved }
     setBusy(true);
     setError(null);
     try {
+      const owed = num(balance) ?? 0;
+      if (owed < 0) throw new Error('หนี้รวมต้องไม่ติดลบ');
       const finalLogo = file ? await uploadCreditorLogo(userId, file) : logo;
       const input = {
         name: trimmed,
         logo: finalLogo,
+        balance: owed,
+        min_payment: num(minAmount),
+        min_payment_percent: num(minPercent),
+        // Changing the total means it was just read off the bank app.
+        balance_updated_on: !initial || owed !== Number(initial.balance) ? todayIso() : initial.balance_updated_on,
         credit_limit: creditLimit.trim() ? Number(creditLimit.replace(/,/g, '')) : null,
         statement_day: statementDay ? Number(statementDay) : null,
         due_day: dueDay ? Number(dueDay) : null,
@@ -128,6 +146,27 @@ export function CreditorForm({ initial, initialLogoUrl, existingNames, onSaved }
         </div>
       )}
 
+      <div className="space-y-2 rounded-lg bg-rose-50 p-3">
+        <label className="block">
+          <span className="text-sm font-medium text-slate-700">หนี้รวมตอนนี้ (ตามแอปธนาคาร)</span>
+          <input className="input mt-1 text-lg" inputMode="decimal" value={balance} onChange={(e) => setBalance(e.target.value)} placeholder="เช่น 77506.62" />
+        </label>
+        <div className="grid grid-cols-2 gap-2">
+          <label className="block">
+            <span className="text-xs text-slate-600">ขั้นต่ำต่อเดือน (บาท)</span>
+            <input className="input mt-1" inputMode="decimal" value={minAmount} onChange={(e) => setMinAmount(e.target.value)} placeholder="เช่น 3000" />
+          </label>
+          <label className="block">
+            <span className="text-xs text-slate-600">หรือ % ของหนี้รวม</span>
+            <input className="input mt-1" inputMode="decimal" value={minPercent} onChange={(e) => setMinPercent(e.target.value)} placeholder="เช่น 8" />
+          </label>
+        </div>
+        <p className="text-xs text-slate-600">
+          ขั้นต่ำเดือนนี้ ≈ <b>{formatMoney(minimumPayment({ balance: num(balance) ?? 0, min_payment: num(minAmount), min_payment_percent: num(minPercent) }))}</b>
+          {minAmount.trim() && minPercent.trim() && ' (ใช้ยอดบาทเป็นหลัก)'}
+        </p>
+      </div>
+
       <div className="grid grid-cols-3 gap-2">
         <label className="block">
           <span className="text-xs text-slate-600">วงเงินรวม</span>
@@ -138,12 +177,12 @@ export function CreditorForm({ initial, initialLogoUrl, existingNames, onSaved }
           <input className="input mt-1" type="number" min={1} max={31} value={statementDay} onChange={(e) => setStatementDay(e.target.value)} placeholder="เช่น 21" />
         </label>
         <label className="block">
-          <span className="text-xs text-slate-600">ครบกำหนดชำระ</span>
+          <span className="text-xs text-slate-600">ครบกำหนดทุกวันที่</span>
           <input className="input mt-1" type="number" min={1} max={31} value={dueDay} onChange={(e) => setDueDay(e.target.value)} placeholder="เช่น 20" />
         </label>
       </div>
       <p className="text-xs text-slate-500">
-        วงเงินรวมที่ทุกก้อนของเจ้าหนี้นี้ใช้ร่วมกัน (บัตร เงินหมุน และผ่อน) ระบบจะคำนวณวงเงินคงเหลือให้ ถ้าไม่มีเว้นว่างไว้ได้
+        วงเงินและวันตัดรอบไม่บังคับ — ใส่ไว้เพื่อดูวงเงินคงเหลือ และบอกว่ารายการรูดบัตรไปอยู่บิลรอบไหน
       </p>
 
       {logo && !file && !isBundledLogo(logo) && !preview && <p className="text-xs text-slate-500">ใช้โลโก้ที่อัปโหลดไว้เดิม</p>}
