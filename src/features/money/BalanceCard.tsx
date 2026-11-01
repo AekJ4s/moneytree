@@ -37,7 +37,7 @@ export function BalanceCard({ refreshKey = 0 }: { refreshKey?: number }) {
   const projected = o ? projectedBalance(o.cash_balance, receivable, payables.remaining) : undefined;
 
   return (
-    <section className="overflow-hidden rounded-lg border border-slate-200 bg-page">
+    <section className="glass overflow-hidden rounded-2xl">
       <div className="flex items-baseline justify-between gap-2 border-b border-slate-200 bg-emerald-50/70 px-4 py-2 text-xs text-slate-500">
         <span>ยอดเงิน ณ {formatThaiDate(today, { day: 'numeric', month: 'long', year: 'numeric' })}</span>
         <button className="text-emerald-700 hover:underline" onClick={() => setShowDetail((s) => !s)} aria-expanded={showDetail}>

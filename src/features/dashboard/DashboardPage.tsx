@@ -64,7 +64,7 @@ export function DashboardPage() {
       <GoalsGrid refreshKey={refreshKey} />
       <BalanceCard refreshKey={refreshKey} />
 
-      <dl className="grid grid-cols-2 overflow-hidden rounded-lg border border-slate-200 bg-page sm:grid-cols-4">
+      <dl className="grid grid-cols-2 glass overflow-hidden rounded-2xl sm:grid-cols-4">
         <MonthFigure label="รายรับเดือนนี้" value={totals.income} tone="text-emerald-700" />
         <MonthFigure label="รายจ่ายเดือนนี้" value={totals.expense} tone="text-rose-600" />
         <MonthFigure label="ออม/ลงทุนเดือนนี้" value={totals.savings} tone="text-amber-600" />

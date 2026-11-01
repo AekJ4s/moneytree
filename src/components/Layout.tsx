@@ -88,7 +88,7 @@ export function Layout() {
 
       {moreOpen && (
         <div className="fixed inset-0 z-20 lg:hidden" onClick={() => setMoreOpen(false)}>
-          <div className="absolute right-2 bottom-16 w-48 rounded-lg border border-slate-200 bg-page p-1 shadow-lg">
+          <div className="absolute right-2 bottom-16 glass w-48 rounded-xl p-1">
             {secondary.map((n) => (
               <NavLink
                 key={n.to}

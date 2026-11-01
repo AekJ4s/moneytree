@@ -10,7 +10,7 @@ export function Modal({ title, onClose, children }: { title: string; onClose: ()
   return (
     <div className="fixed inset-0 z-40 flex items-end justify-center bg-slate-900/40 sm:items-center" onClick={onClose}>
       <div
-        className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-xl bg-page p-5 shadow-xl sm:rounded-lg"
+        className="max-h-[92vh] w-full max-w-lg overflow-y-auto glass rounded-t-2xl p-5 sm:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"

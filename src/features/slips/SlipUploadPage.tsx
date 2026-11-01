@@ -232,7 +232,7 @@ export function SlipUploadPage() {
       {lookups.error && <ErrorText>{lookups.error}</ErrorText>}
 
       {drafts.length > 0 && (
-        <div className="sticky top-14 z-10 flex flex-wrap items-center gap-3 rounded-xl bg-white/95 p-3 shadow-sm ring-1 ring-slate-200 backdrop-blur">
+        <div className="sticky top-14 z-10 flex flex-wrap items-center gap-3 glass rounded-xl p-3">
           <span className="text-sm text-slate-600">
             ทั้งหมด {drafts.length} รูป
             {scanningCount > 0 && ` · กำลังอ่าน ${scanningCount}`}

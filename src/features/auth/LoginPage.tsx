@@ -27,7 +27,7 @@ export function LoginPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4">
-      <form onSubmit={onSubmit} className="w-full max-w-sm space-y-4 rounded-2xl border border-slate-200 bg-page p-6">
+      <form onSubmit={onSubmit} className="w-full max-w-sm space-y-4 glass rounded-2xl p-6">
         <div className="text-center">
           <Mascot className="mx-auto h-28" />
           <h1 className="mt-3 text-2xl font-bold tracking-tight text-slate-900">Money Tree</h1>
